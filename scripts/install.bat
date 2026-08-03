@@ -1,0 +1,55 @@
+@echo off
+rem Install orca-vision-helper (Windows). Double-click to run.
+setlocal
+cd /d "%~dp0\.."
+title orca-vision-helper installer
+
+echo Checking Python...
+py -3 --version >nul 2>nul
+if errorlevel 1 (
+    echo Python 3.11+ is required but was not found.
+    echo Install it from https://www.python.org/downloads/ ^(check "Add python.exe to PATH"^),
+    echo then run this script again.
+    pause
+    exit /b 1
+)
+py -3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"
+if errorlevel 1 (
+    echo Python 3.11+ is required; an older version was found. Please upgrade Python.
+    pause
+    exit /b 1
+)
+
+echo Creating virtual environment...
+py -3 -m venv .venv
+if errorlevel 1 (
+    echo Failed to create the virtual environment.
+    pause
+    exit /b 1
+)
+
+echo Installing orca-vision-helper...
+".venv\Scripts\python.exe" -m pip install -e . -q
+if errorlevel 1 (
+    echo Installation failed. Check the error above.
+    pause
+    exit /b 1
+)
+
+".venv\Scripts\python.exe" -c "import orca_vision_helper; print('Installed version:', orca_vision_helper.__version__)"
+
+echo.
+set /p SETUP="Choose your default provider and model now? [Y/n]: "
+if /I "%SETUP%"=="N" goto skip_setup
+echo Running setup - pick a provider, model, and key...
+".venv\Scripts\orca-vision-helper.exe" setup
+goto after_setup
+:skip_setup
+echo Skipped. Configure anytime with: .venv\Scripts\orca-vision-helper setup
+:after_setup
+
+echo.
+echo Done. Next steps:
+echo   .venv\Scripts\orca-vision-helper analyze shot.png
+echo.
+pause

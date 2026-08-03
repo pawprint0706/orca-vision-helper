@@ -35,20 +35,48 @@ python3 -m venv .venv
   not affect the rest of your shell state.
 - On success this creates the `orca-vision-helper` script.
 
-## 3. Register a provider (one-time)
+## 3. Choose and register the default provider (one-time)
 
-Register a vision model provider. opencode-go needs **no key entry** — the key
-is auto-detected from `~/.local/share/opencode/auth.json` or `OPENCODE_API_KEY`:
+**Ask the user which provider they want as the default — do not pick one
+silently.** Show the supported providers (and their default models) from the
+table below or `orca-vision-helper models`, ask for the provider and (if they
+care) the model, then register their choice. The default provider is used by
+every `analyze` call.
+
+| type | provider | default model | key source |
+|---|---|---|---|
+| `opencode-go` | OpenCode Go | `qwen3.6-plus` | auto-detected (`auth.json` / `OPENCODE_API_KEY`) |
+| `opencode` | OpenCode Zen | `claude-sonnet-4-6` | auto-detected (`auth.json` / `OPENCODE_API_KEY`) |
+| `openrouter` | OpenRouter | `anthropic/claude-sonnet-4.6` | `OPENROUTER_API_KEY` / keychain |
+| `anthropic` | Anthropic Claude | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` / keychain |
+| `openai` | OpenAI GPT | `gpt-5.4` | `OPENAI_API_KEY` / keychain |
+| `ollama` | Ollama (local) | `llava:7b` | none (local) |
+| `custom` | Custom (OpenAI-compatible) | user-defined | keychain / keyless |
+
+Interactive registration (recommended when a human is at the terminal — the
+double-click install scripts do this automatically): the `setup` wizard walks
+through provider selection, hidden key entry, and model choice, then sets the
+default.
 
 ```bash
-.venv/bin/orca-vision-helper provider add --type opencode-go --set-default
+.venv/bin/orca-vision-helper setup
+```
+
+Scripted registration of the user's choice:
+
+```bash
+.venv/bin/orca-vision-helper provider add --type <chosen-type> --model <chosen-model> --set-default
 .venv/bin/orca-vision-helper provider list   # confirm "has_key": true
 ```
 
-- For other providers (anthropic/openrouter/openai etc.): run
-  `provider add --type <t>`, then use the matching `*_API_KEY` env var or
-  register a hidden key with `provider update <id> --key -`.
-- For local Ollama: start `ollama serve`, then `provider add --type ollama`.
+- Model: use the provider's default above unless the user prefers another —
+  list vision-capable models with `orca-vision-helper models`.
+- opencode-go/opencode need **no key entry** — the key is auto-detected from
+  `~/.local/share/opencode/auth.json` or `OPENCODE_API_KEY`.
+- For other providers (anthropic/openrouter/openai etc.): use the matching
+  `*_API_KEY` env var or register a hidden key with `provider update <id> --key -`.
+- For local Ollama: start `ollama serve` before registering
+  (`provider add --type ollama`).
 
 ## 4. Analyze images (usage patterns)
 

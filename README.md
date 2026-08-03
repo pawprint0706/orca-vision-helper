@@ -31,6 +31,20 @@ python3 -m venv .venv
 ./.venv/bin/pip install -e .
 ```
 
+Or use the convenience scripts — no commands needed (double-click on
+Windows/macOS):
+
+| Platform | Install | Uninstall |
+|---|---|---|
+| Windows | double-click `scripts/install.bat` | double-click `scripts/uninstall.bat` |
+| macOS | double-click `scripts/install.command` | double-click `scripts/uninstall.command` |
+| Linux | `bash scripts/install.sh` | `bash scripts/uninstall.sh` |
+
+Requirements: Python 3.11+ (macOS may need `brew install python@3.11`). On
+macOS, if double-clicking does nothing, run `chmod +x scripts/*.command` once.
+After installing, each script asks whether to launch the interactive `setup`
+wizard, where you choose your **default provider and model**.
+
 ### Quick Start
 
 ```bash
@@ -112,6 +126,9 @@ sensitive screens, use the local Ollama provider instead.
 
 ### Uninstall
 
+The convenience scripts (table above) remove everything — providers,
+keychain keys, config, and the venv. Manual equivalent:
+
 ```bash
 # 1. (Optional, but recommended) Remove each provider — also deletes its keychain key
 ./.venv/bin/orca-vision-helper provider remove <id>
@@ -171,6 +188,19 @@ cd orca-vision-helper           # 클론한 저장소 루트로 이동
 python3 -m venv .venv
 ./.venv/bin/pip install -e .
 ```
+
+또는 편의 스크립트를 사용하세요 — 명령어 입력 없이 (윈도우/맥은 더블클릭):
+
+| 플랫폼 | 설치 | 삭제 |
+|---|---|---|
+| Windows | `scripts/install.bat` 더블클릭 | `scripts/uninstall.bat` 더블클릭 |
+| macOS | `scripts/install.command` 더블클릭 | `scripts/uninstall.command` 더블클릭 |
+| Linux | `bash scripts/install.sh` | `bash scripts/uninstall.sh` |
+
+요구사항: Python 3.11+ (macOS는 `brew install python@3.11` 필요할 수 있음).
+macOS에서 더블클릭이 반응하지 않으면 `chmod +x scripts/*.command`를 한 번 실행하세요.
+스크립트는 설치 후 **기본 제공자와 모델을 고르는** 대화형 `setup` 마법사를
+실행할지 묻습니다.
 
 ### 빠른 시작
 
@@ -251,6 +281,9 @@ Cloudflare 봇 차단 대응).
 민감한 화면이 있는 경우 로컬 Ollama 제공자를 사용하세요.
 
 ### 삭제
+
+위 편의 스크립트(표)로 제공자·키체인 키·설정·venv를 한 번에 제거할 수
+있습니다. 수동으로 하려면:
 
 ```bash
 # 1. (권장) 각 제공자 삭제 — 키체인 키도 함께 삭제됩니다
