@@ -49,6 +49,21 @@ def _print_json(obj: dict, *, ok: bool = True) -> int:
     return 0 if ok else 1
 
 
+def _force_utf8_stdio() -> None:
+    """Make stdout/stderr (and stdin) emit UTF-8 regardless of the locale.
+
+    On Windows with a non-UTF-8 codepage (e.g. Korean CP949) Python encodes
+    piped output with the locale encoding, which garbles Korean/Japanese text
+    for the capturing side (agent harnesses, shells). Reconfiguring here keeps
+    the bytes UTF-8 on every platform and invocation.
+    """
+    for stream in (sys.stdout, sys.stderr, sys.stdin):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, OSError, ValueError):
+            pass
+
+
 # --------------------------------------------------------------------------- #
 # setup
 # --------------------------------------------------------------------------- #
@@ -428,6 +443,7 @@ def _cmd_models(_args) -> int:
 # main
 # --------------------------------------------------------------------------- #
 def main(argv: list[str] | None = None) -> int:
+    _force_utf8_stdio()
     parser = argparse.ArgumentParser(
         prog="orca-vision-helper",
         description="Analyze images with a vision-capable model and return a text report.",

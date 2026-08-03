@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import io
+import sys
 
 import pytest
 
@@ -66,3 +68,19 @@ def test_provider_without_subcommand_prints_help(capsys):
     out = capsys.readouterr().out
     assert rc == 0
     assert "add" in out and "list" in out and "remove" in out
+
+
+def test_force_utf8_stdio(monkeypatch):
+    out_buf = io.BytesIO()
+    out = io.TextIOWrapper(out_buf, encoding="ascii", errors="strict")
+    err = io.TextIOWrapper(io.BytesIO(), encoding="ascii", errors="strict")
+    in_buf = io.BytesIO("가나다".encode())
+    stdin = io.TextIOWrapper(in_buf, encoding="ascii", errors="strict")
+    monkeypatch.setattr(sys, "stdout", out)
+    monkeypatch.setattr(sys, "stderr", err)
+    monkeypatch.setattr(sys, "stdin", stdin)
+    cli._force_utf8_stdio()
+    assert out.encoding.replace("-", "").lower() == "utf8"
+    print("가나다")
+    out.flush()
+    assert "가나다".encode() in out_buf.getvalue()
