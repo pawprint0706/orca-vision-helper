@@ -9,9 +9,11 @@
 ## 0. Confirm it is installed (skip to §2 if already removed)
 
 ```bash
-which orca-vision-helper && echo INSTALLED || echo NOT_INSTALLED
+if [ -x .venv/bin/orca-vision-helper ]; then echo INSTALLED; else echo NOT_INSTALLED; fi
 ```
 
+- Use the venv-relative check above — `which orca-vision-helper` only finds the
+  tool when the venv is activated or it is on your PATH.
 - If `NOT_INSTALLED`, still run §1 to clean up the config and keychain entries,
   if any.
 

@@ -9,9 +9,16 @@
 ## 0. Check if already installed (skip §1–§2 if present)
 
 ```bash
-which orca-vision-helper && orca-vision-helper --help >/dev/null 2>&1 && echo INSTALLED || echo NOT_INSTALLED
+if [ -x .venv/bin/orca-vision-helper ] && .venv/bin/orca-vision-helper --help >/dev/null 2>&1; then
+    echo INSTALLED
+else
+    echo NOT_INSTALLED
+fi
 ```
 
+- Use the venv-relative check above. `which orca-vision-helper` only succeeds
+  when the venv is activated or the tool is on your PATH — a false
+  `NOT_INSTALLED` is harmless: re-running the install in §2 is idempotent.
 - If it prints `INSTALLED`, jump to **§3** (installation is a one-time task).
 - If you suspect a stale version, just re-run `pip install -e .` to pick up the
   latest code.
