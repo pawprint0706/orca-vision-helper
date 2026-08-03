@@ -19,7 +19,9 @@ fi
 - Use the venv-relative check above. `which orca-vision-helper` only succeeds
   when the venv is activated or the tool is on your PATH — a false
   `NOT_INSTALLED` is harmless: re-running the install in §2 is idempotent.
-- If it prints `INSTALLED`, jump to **§3** (installation is a one-time task).
+- If it prints `INSTALLED`, verify the global command from §2 exists
+  (`command -v orca-vision-helper`) and re-register it if missing — global
+  registration is a **required** install step, not an option. Then jump to **§3**.
 - If you suspect a stale version, just re-run `pip install -e .` to pick up the
   latest code.
 
@@ -42,27 +44,39 @@ python3 -m venv .venv
   not affect the rest of your shell state.
 - On success this creates the `orca-vision-helper` script.
 
-### Optional: register a global command (run from any directory)
+### Register the global command (required)
 
 The `.venv/bin/…` path only works while your working directory is the repo
-root. To call the tool from anywhere, register a global command — the
-double-click install scripts offer this and do it for you. Manual equivalent:
+root. The tool must be callable from any directory, so register a global
+command — the double-click install scripts do this as a required step.
+Manual equivalent:
+
+**macOS / Linux** — symlink into a bin dir on your PATH (e.g. `~/.local/bin`):
 
 ```bash
-# macOS / Linux — symlink into a bin dir on your PATH (e.g. ~/.local/bin)
-ln -s "$(pwd)/.venv/bin/orca-vision-helper" ~/.local/bin/orca-vision-helper
+mkdir -p ~/.local/bin
+ln -sfn "$(pwd)/.venv/bin/orca-vision-helper" ~/.local/bin/orca-vision-helper
 ```
 
-Windows uses a PATH shim instead (no admin rights needed):
+- Confirm the bin dir is on your PATH:
+  `echo "$PATH" | grep -q "$HOME/.local/bin"` — if not, add it
+  (e.g. `export PATH="$HOME/.local/bin:$PATH"` in `~/.zshrc` / `~/.bashrc`).
+
+**Windows** — PATH shim instead (no admin rights needed):
 
 ```bat
 (echo @echo off & echo "%CD%\.venv\Scripts\orca-vision-helper.exe" %%*) > "%LOCALAPPDATA%\Microsoft\WindowsApps\orca-vision-helper.cmd"
 ```
 
+- Verify with `where orca-vision-helper`. `%LOCALAPPDATA%\Microsoft\WindowsApps`
+  is on PATH by default on modern Windows; if not, add it to PATH manually.
+
+Notes:
+
 - The config (`~/.config/orca-vision-helper/`) and keys are global already —
   provider registration survives moving between directories.
-- If the repo is moved, re-run the install script (or the `ln -s` above) to
-  refresh the global command.
+- If the repo is moved, re-run the install script (or the `ln -s` / shim above)
+  to refresh the global command.
 
 ## 3. Choose and register the default provider (one-time)
 

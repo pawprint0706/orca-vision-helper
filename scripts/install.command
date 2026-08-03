@@ -33,31 +33,27 @@ case "$SETUP" in
 esac
 
 echo ""
-read -r -p "Register a global 'orca-vision-helper' command (run from any directory)? [Y/n]: " REG
-case "$REG" in
-    n|N|no|NO) echo "Skipped. Re-run this script anytime to register." ;;
-    *)
-        TARGET=""
-        if [ -w /usr/local/bin ]; then
-            TARGET=/usr/local/bin
-        elif { [ -d "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin" 2>/dev/null; } && [ -w "$HOME/.local/bin" ]; then
-            TARGET="$HOME/.local/bin"
-        fi
-        if [ -n "$TARGET" ]; then
-            ln -sfn "$PWD/.venv/bin/orca-vision-helper" "$TARGET/orca-vision-helper"
-            if echo ":$PATH:" | grep -q ":$TARGET:"; then
-                echo "Registered: $TARGET/orca-vision-helper (on PATH)"
-            else
-                echo "Registered: $TARGET/orca-vision-helper"
-                echo "NOTE: $TARGET is not on your PATH yet. Add it, e.g. in ~/.zshrc:"
-                echo "  export PATH=\"$TARGET:\$PATH\""
-            fi
-        else
-            echo "No writable bin directory found. Register manually:"
-            echo "  ln -s \"$PWD/.venv/bin/orca-vision-helper\" <bin-dir-on-PATH>/orca-vision-helper"
-        fi
-        ;;
-esac
+echo "Registering a global 'orca-vision-helper' command (run from any directory)..."
+TARGET=""
+if [ -w /usr/local/bin ]; then
+    TARGET=/usr/local/bin
+elif { [ -d "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin" 2>/dev/null; } && [ -w "$HOME/.local/bin" ]; then
+    TARGET="$HOME/.local/bin"
+fi
+if [ -n "$TARGET" ]; then
+    ln -sfn "$PWD/.venv/bin/orca-vision-helper" "$TARGET/orca-vision-helper"
+    if echo ":$PATH:" | grep -q ":$TARGET:"; then
+        echo "Registered: $TARGET/orca-vision-helper (on PATH)"
+    else
+        echo "Registered: $TARGET/orca-vision-helper"
+        echo "NOTE: $TARGET is not on your PATH yet. Add it, e.g. in ~/.zshrc:"
+        echo "  export PATH=\"$TARGET:\$PATH\""
+    fi
+else
+    echo "ERROR: No writable bin directory found. Add one to your PATH and re-run:"
+    echo "  mkdir -p \"$HOME/.local/bin\" && export PATH=\"$HOME/.local/bin:\$PATH\""
+    exit 1
+fi
 
 echo ""
 echo "Done. Next steps:"
