@@ -115,6 +115,16 @@ def _cmd_setup(args) -> int:
 # --------------------------------------------------------------------------- #
 # provider add / update / remove / list
 # --------------------------------------------------------------------------- #
+def _cmd_provider_help(parser):
+    """`provider` without a subcommand prints its help instead of erroring."""
+
+    def _run(_args) -> int:
+        parser.print_help()
+        return 0
+
+    return _run
+
+
 def _cmd_provider_add(args) -> int:
     config = cfg.load_config()
     pid = args.id or args.type
@@ -427,7 +437,8 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("setup", help="interactive first-time setup").set_defaults(func=_cmd_setup)
 
     p_prov = sub.add_parser("provider", help="manage vision providers")
-    prov_sub = p_prov.add_subparsers(dest="prov_command", required=True)
+    p_prov.set_defaults(func=_cmd_provider_help(p_prov))
+    prov_sub = p_prov.add_subparsers(dest="prov_command")
     p_add = prov_sub.add_parser("add", help="register a provider")
     p_add.add_argument("--type", required=True, choices=list(prov.CATALOG))
     p_add.add_argument("--id", help="provider id (default = type)")

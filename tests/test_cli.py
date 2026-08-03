@@ -59,3 +59,10 @@ def test_setup_invalid_choice_returns_1(monkeypatch):
     rc = _run_setup(monkeypatch, ["99"])
     assert rc == 1
     assert cfg.load_config().providers == []
+
+
+def test_provider_without_subcommand_prints_help(capsys):
+    rc = cli.main(["provider"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "add" in out and "list" in out and "remove" in out
