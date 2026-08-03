@@ -56,5 +56,13 @@ else
 fi
 
 echo ""
+echo "Recommended: make AI agents aware of this tool (so they can 'see' screenshots)."
+echo "Merge AGENTS.md into your harness's global instructions file (append only), e.g.:"
+echo "  cat AGENTS.md >> ~/.config/opencode/AGENTS.md"
+echo "  cat AGENTS.md >> ~/.codex/AGENTS.md"
+echo "  cat AGENTS.md >> ~/.claude/CLAUDE.md"
+echo "See docs/AGENT_INSTALL.md for the full list."
+
+echo ""
 echo "Done. Next steps:"
 echo "  ./.venv/bin/orca-vision-helper analyze shot.png"

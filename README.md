@@ -48,6 +48,29 @@ wizard, where you choose your **default provider and model**. Each script then
 any directory — a symlink on macOS/Linux, a PATH shim on Windows. If the repo
 is moved, re-run the install script to refresh the global command.
 
+### Make agents aware of the tool (recommended)
+
+A plain CLI is invisible to coding agents unless it appears in their context —
+there is no MCP-style tool list to discover it from. To make every agent
+session (in any harness: opencode / codex / Claude Code / Cursor …) know about
+the tool, merge the project-root `AGENTS.md` into the global instructions file
+of each harness you use. These files are read automatically at session start.
+**Always append** — never overwrite an existing file:
+
+| Harness | Global instructions file |
+|---|---|
+| opencode | `~/.config/opencode/AGENTS.md` |
+| Codex | `~/.codex/AGENTS.md` |
+| Claude Code | `~/.claude/CLAUDE.md` (newer versions also read `AGENTS.md`) |
+| Cursor | `~/.cursor/rules/` (global rules) |
+
+```bash
+cat AGENTS.md >> ~/.config/opencode/AGENTS.md   # example: opencode
+```
+
+Skipping this is fine for interactive use (the human tells the agent about the
+tool), but agents will not discover it on their own.
+
 ### Quick Start
 
 ```bash
@@ -207,6 +230,28 @@ macOS에서 더블클릭이 반응하지 않으면 `chmod +x scripts/*.command`�
 등록**을 (macOS/Linux: 심볼릭 링크, Windows: PATH 셈 파일) 필수 단계로
 수행합니다. 저장소를 옮긴 경우 설치 스크립트를 다시 실행해 전역 명령어를
 갱신하세요.
+
+### 에이전트가 이 도구를 알게 하기 (권장)
+
+일반 CLI는 MCP처럼 툴 목록에 나타나지 않아 에이전트가 스스로 발견할 수
+없습니다. 모든 세션에서 에이전트(어떤 하네스든: opencode / codex / Claude
+Code / Cursor …)가 이 도구를 알게 하려면, 프로젝트 루트의 `AGENTS.md`를
+사용 중인 하네스의 전역 지침 파일에 병합하세요. 이 파일들은 세션 시작 시
+자동으로 읽힙니다. **반드시 append** — 기존 파일을 덮어쓰지 마세요:
+
+| 하네스 | 전역 지침 파일 |
+|---|---|
+| opencode | `~/.config/opencode/AGENTS.md` |
+| Codex | `~/.codex/AGENTS.md` |
+| Claude Code | `~/.claude/CLAUDE.md` (신버전은 `AGENTS.md`도 읽음) |
+| Cursor | `~/.cursor/rules/` (전역 규칙) |
+
+```bash
+cat AGENTS.md >> ~/.config/opencode/AGENTS.md   # 예: opencode
+```
+
+생략해도 대화형 사용에는 문제없지만(사람이 필요할 때 알려주면 됨),
+에이전트가 스스로 이 도구를 발견할 수는 없습니다.
 
 ### 빠른 시작
 

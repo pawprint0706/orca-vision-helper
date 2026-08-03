@@ -78,6 +78,42 @@ Notes:
 - If the repo is moved, re-run the install script (or the `ln -s` / shim above)
   to refresh the global command.
 
+### Register agent awareness (recommended)
+
+A plain CLI is invisible to coding agents unless something puts it in their
+context — there is no MCP-style tool list to discover it from. To make every
+agent session (in any harness: opencode / codex / Claude Code / Cursor …)
+know about the tool, merge the project-root `AGENTS.md` into the global
+instructions file(s) of the harnesses in use. These files are read
+automatically at session start. **Always append** — never overwrite an
+existing file with other instructions:
+
+| Harness | Global instructions file |
+|---|---|
+| opencode | `~/.config/opencode/AGENTS.md` |
+| Codex | `~/.codex/AGENTS.md` |
+| Claude Code | `~/.claude/CLAUDE.md` (newer versions also read `AGENTS.md`) |
+| Cursor | `~/.cursor/rules/` (global rules) |
+
+Example (opencode; adapt the path per harness):
+
+```bash
+AGENTS_FILE="$HOME/.config/opencode/AGENTS.md"
+mkdir -p "$(dirname "$AGENTS_FILE")" && touch "$AGENTS_FILE"
+if ! grep -q "orca-vision-helper" "$AGENTS_FILE"; then
+    { echo ""; cat AGENTS.md; } >> "$AGENTS_FILE"
+    echo "Merged AGENTS.md into $AGENTS_FILE"
+else
+    echo "Already present in $AGENTS_FILE"
+fi
+```
+
+- If a harness file already exists with other instructions, the append still
+  works — instructions are additive; the `orca-vision-helper` section in
+  `AGENTS.md` is already clearly headed, so it stays scoped.
+- Skipping this step is fine for interactive use (the human tells the agent
+  about the tool when needed), but agents will not discover it on their own.
+
 ## 3. Choose and register the default provider (one-time)
 
 **Ask the user which provider they want as the default — do not pick one
