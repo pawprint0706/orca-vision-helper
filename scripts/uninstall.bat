@@ -12,6 +12,9 @@ if exist ".venv\Scripts\orca-vision-helper.exe" (
 echo Deleting configuration...
 if exist "%USERPROFILE%\.config\orca-vision-helper" rmdir /s /q "%USERPROFILE%\.config\orca-vision-helper"
 
+echo Removing the global command (if any)...
+if exist "%LOCALAPPDATA%\Microsoft\WindowsApps\orca-vision-helper.cmd" del "%LOCALAPPDATA%\Microsoft\WindowsApps\orca-vision-helper.cmd"
+
 echo Deleting the virtual environment...
 if exist ".venv" rmdir /s /q ".venv"
 

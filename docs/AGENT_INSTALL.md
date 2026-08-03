@@ -42,6 +42,28 @@ python3 -m venv .venv
   not affect the rest of your shell state.
 - On success this creates the `orca-vision-helper` script.
 
+### Optional: register a global command (run from any directory)
+
+The `.venv/bin/…` path only works while your working directory is the repo
+root. To call the tool from anywhere, register a global command — the
+double-click install scripts offer this and do it for you. Manual equivalent:
+
+```bash
+# macOS / Linux — symlink into a bin dir on your PATH (e.g. ~/.local/bin)
+ln -s "$(pwd)/.venv/bin/orca-vision-helper" ~/.local/bin/orca-vision-helper
+```
+
+Windows uses a PATH shim instead (no admin rights needed):
+
+```bat
+(echo @echo off & echo "%CD%\.venv\Scripts\orca-vision-helper.exe" %%*) > "%LOCALAPPDATA%\Microsoft\WindowsApps\orca-vision-helper.cmd"
+```
+
+- The config (`~/.config/orca-vision-helper/`) and keys are global already —
+  provider registration survives moving between directories.
+- If the repo is moved, re-run the install script (or the `ln -s` above) to
+  refresh the global command.
+
 ## 3. Choose and register the default provider (one-time)
 
 **Ask the user which provider they want as the default — do not pick one

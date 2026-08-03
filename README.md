@@ -43,7 +43,10 @@ Windows/macOS):
 Requirements: Python 3.11+ (macOS may need `brew install python@3.11`). On
 macOS, if double-clicking does nothing, run `chmod +x scripts/*.command` once.
 After installing, each script asks whether to launch the interactive `setup`
-wizard, where you choose your **default provider and model**.
+wizard, where you choose your **default provider and model**, and whether to
+**register a global `orca-vision-helper` command** so it works from any
+directory (symlink on macOS/Linux, a PATH shim on Windows). If the repo is
+moved, re-run the install script to refresh the global command.
 
 ### Quick Start
 
@@ -200,7 +203,9 @@ python3 -m venv .venv
 요구사항: Python 3.11+ (macOS는 `brew install python@3.11` 필요할 수 있음).
 macOS에서 더블클릭이 반응하지 않으면 `chmod +x scripts/*.command`를 한 번 실행하세요.
 스크립트는 설치 후 **기본 제공자와 모델을 고르는** 대화형 `setup` 마법사를
-실행할지 묻습니다.
+실행할지, 그리고 **어느 디렉토리에서든 실행 가능한 전역 명령어로 등록**할지
+(macOS/Linux: 심볼릭 링크, Windows: PATH 셈 파일) 묻습니다. 저장소를 옮긴
+경우 설치 스크립트를 다시 실행해 전역 명령어를 갱신하세요.
 
 ### 빠른 시작
 

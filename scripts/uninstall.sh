@@ -12,6 +12,14 @@ fi
 echo "Deleting configuration..."
 rm -rf "$HOME/.config/orca-vision-helper"
 
+echo "Removing the global command (if any)..."
+for TARGET in /usr/local/bin "$HOME/.local/bin"; do
+    if [ -L "$TARGET/orca-vision-helper" ]; then
+        rm -f "$TARGET/orca-vision-helper"
+        echo "Removed: $TARGET/orca-vision-helper"
+    fi
+done
+
 echo "Deleting the virtual environment..."
 rm -rf .venv
 

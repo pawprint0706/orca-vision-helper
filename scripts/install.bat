@@ -49,7 +49,24 @@ echo Skipped. Configure anytime with: .venv\Scripts\orca-vision-helper setup
 :after_setup
 
 echo.
+set /p REG="Register a global 'orca-vision-helper' command (run from any directory)? [Y/n]: "
+if /I "%REG%"=="N" goto skip_register
+set "SHIM_DIR=%LOCALAPPDATA%\Microsoft\WindowsApps"
+set "SHIM=%SHIM_DIR%\orca-vision-helper.cmd"
+if not exist "%SHIM_DIR%" mkdir "%SHIM_DIR%"
+(
+    echo @echo off
+    echo "%CD%\.venv\Scripts\orca-vision-helper.exe" %%*
+) > "%SHIM%"
+echo Registered: %SHIM%
+where orca-vision-helper >nul 2>nul && echo OK - 'orca-vision-helper' is on PATH. || echo NOTE: WindowsApps is not on your PATH - add it manually.
+goto after_register
+:skip_register
+echo Skipped. Re-run this script anytime to register.
+:after_register
+
+echo.
 echo Done. Next steps:
-echo   .venv\Scripts\orca-vision-helper analyze shot.png
+echo   orca-vision-helper analyze shot.png
 echo.
 pause
