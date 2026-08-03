@@ -101,7 +101,9 @@ def _cmd_setup(args) -> int:
                 ProviderConfig(id=t, type=t, label=spec.name, model=model,
                                base_url=base_url, key_ref=key_ref)
             )
-        if args.set_default or latest.default_provider_id is None:
+        # setup has no --set-default flag: a fresh default becomes the default,
+        # an existing one is only replaced when it is the first provider.
+        if getattr(args, "set_default", False) or latest.default_provider_id is None:
             latest.set_default_provider(t)
 
     config = cfg.update_config(mutate)
