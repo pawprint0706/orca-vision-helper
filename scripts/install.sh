@@ -57,11 +57,11 @@ fi
 
 echo ""
 echo "Recommended: make AI agents aware of this tool (so they can 'see' screenshots)."
-echo "Merge AGENTS.md into your harness's global instructions file (append only), e.g.:"
-echo "  cat AGENTS.md >> ~/.config/opencode/AGENTS.md"
-echo "  cat AGENTS.md >> ~/.codex/AGENTS.md"
-echo "  cat AGENTS.md >> ~/.claude/CLAUDE.md"
-echo "See docs/AGENT_INSTALL.md for the full list."
+echo "With your approval, copy the marked block from docs/AGENT_TOOL_RULE.md"
+echo "into your harness's global instructions. Do NOT copy the root AGENTS.md."
+echo "If the marked block already exists, replace only that block; do not append"
+echo "a duplicate or overwrite unrelated instructions."
+echo "See docs/AGENT_INSTALL.md for target paths and the safe merge procedure."
 
 echo ""
 echo "Done. Next steps:"

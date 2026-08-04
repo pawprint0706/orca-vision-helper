@@ -67,11 +67,11 @@ if not exist "%SHIM%" (
 
 echo.
 echo Recommended: make AI agents aware of this tool (so they can "see" screenshots).
-echo Merge AGENTS.md into your harness's global instructions file (append only), e.g.:
-echo   type AGENTS.md ^>^> %USERPROFILE%\.config\opencode\AGENTS.md
-echo   type AGENTS.md ^>^> %USERPROFILE%\.codex\AGENTS.md
-echo   type AGENTS.md ^>^> %USERPROFILE%\.claude\CLAUDE.md
-echo See docs\AGENT_INSTALL.md for the full list.
+echo With your approval, copy the marked block from docs\AGENT_TOOL_RULE.md
+echo into your harness's global instructions. Do NOT copy the root AGENTS.md.
+echo If the marked block already exists, replace only that block; do not append
+echo a duplicate or overwrite unrelated instructions.
+echo See docs\AGENT_INSTALL.md for target paths and the safe merge procedure.
 echo.
 echo Done. Next steps:
 echo   orca-vision-helper analyze shot.png

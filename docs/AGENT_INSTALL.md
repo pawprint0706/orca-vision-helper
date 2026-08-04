@@ -1,8 +1,11 @@
 # AGENT_INSTALL — Installation Instructions for AI Agents
 
-> This document is written for **AI agents** (vision-blind coding models) that
-> want to install, verify, and use orca-vision-helper on their own. Run every
-> command with the bash tool. For human-readable docs, see [README.md](../README.md).
+> This document is for AI agents installing or configuring
+> `orca-vision-helper` **after the user has explicitly approved those changes**.
+> The absence of the command does not authorize package installation, `PATH`
+> changes, provider registration, credential access, or edits to global agent
+> instructions. Use the shell appropriate to the current environment. For
+> human-readable docs, see [README.md](../README.md).
 
 ---
 
@@ -81,38 +84,43 @@ Notes:
 ### Register agent awareness (recommended)
 
 A plain CLI is invisible to coding agents unless something puts it in their
-context — there is no MCP-style tool list to discover it from. To make every
-agent session (in any harness: opencode / codex / Claude Code / Cursor …)
-know about the tool, merge the project-root `AGENTS.md` into the global
-instructions file(s) of the harnesses in use. These files are read
-automatically at session start. **Always append** — never overwrite an
-existing file with other instructions:
+context — there is no MCP-style tool list to discover it from. The stable,
+short discovery rule intended for global instructions is
+[`AGENT_TOOL_RULE.md`](AGENT_TOOL_RULE.md). The project-root `AGENTS.md` is for
+agents developing this repository and must not be copied globally.
+
+Global instruction registration is optional and changes user-level files.
+Ask for explicit approval before editing them, even when package installation
+was already approved. After approval, copy the complete block from
+`AGENT_TOOL_RULE.md`, including its `BEGIN orca-vision-helper` and
+`END orca-vision-helper` markers, to the relevant target:
 
 | Harness | Global instructions file |
 |---|---|
 | opencode | `~/.config/opencode/AGENTS.md` |
 | Codex | `~/.codex/AGENTS.md` |
 | Claude Code | `~/.claude/CLAUDE.md` (newer versions also read `AGENTS.md`) |
-| Cursor | `~/.cursor/rules/` (global rules) |
+| Cursor | a dedicated rule file such as `~/.cursor/rules/orca-vision-helper.md` |
 
-Example (opencode; adapt the path per harness):
+Apply these merge rules:
 
-```bash
-AGENTS_FILE="$HOME/.config/opencode/AGENTS.md"
-mkdir -p "$(dirname "$AGENTS_FILE")" && touch "$AGENTS_FILE"
-if ! grep -q "orca-vision-helper" "$AGENTS_FILE"; then
-    { echo ""; cat AGENTS.md; } >> "$AGENTS_FILE"
-    echo "Merged AGENTS.md into $AGENTS_FILE"
-else
-    echo "Already present in $AGENTS_FILE"
-fi
-```
+1. Read the target first and preserve all unrelated instructions.
+2. If neither marker exists, append one complete block with a separating blank
+   line. Never overwrite the target file.
+3. If both markers exist, replace only the text from the begin marker through
+   the end marker. This updates an older rule without creating duplicates.
+4. If only one marker exists, stop and ask the user how to resolve the malformed
+   block rather than guessing its boundaries.
+5. Read the result back and confirm that exactly one begin marker and one end
+   marker remain.
 
-- If a harness file already exists with other instructions, the append still
-  works — instructions are additive; the `orca-vision-helper` section in
-  `AGENTS.md` is already clearly headed, so it stays scoped.
-- Skipping this step is fine for interactive use (the human tells the agent
-  about the tool when needed), but agents will not discover it on their own.
+The distributed rule intentionally contains only tool discovery, invocation,
+and safety constraints. Provider details, model names, error recovery, and
+installation instructions remain in the CLI help and repository docs so the
+global context does not become stale or unnecessarily large.
+
+Skipping this step is fine for interactive use when the human tells the agent
+about the tool, but future sessions will not discover it on their own.
 
 ## 3. Choose and register the default provider (one-time)
 

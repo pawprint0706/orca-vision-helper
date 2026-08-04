@@ -1,0 +1,52 @@
+<!-- BEGIN orca-vision-helper -->
+## Tool: orca-vision-helper
+
+`orca-vision-helper` is a CLI for agents that cannot reliably inspect images.
+It sends a local image to a configured vision provider and returns a text
+report.
+
+Repository: https://github.com/pawprint0706/orca-vision-helper
+
+### Use it when
+
+Use this tool when all of the following apply:
+
+- The task requires information from an image or screenshot.
+- You cannot reliably inspect the image with your built-in tools.
+- A confirmed local image path is available.
+
+Typical uses include reading UI text, inspecting application state, and
+diagnosing layout, clipping, overlap, or alignment problems.
+
+### Commands
+
+```bash
+# Verify availability and show current usage
+orca-vision-helper --help
+
+# General image analysis
+orca-vision-helper analyze "<image-path>"
+
+# Ask a focused question
+orca-vision-helper analyze "<image-path>" --prompt "<question about the image>"
+
+# Diagnose the existing configuration
+orca-vision-helper check
+```
+
+Read the returned report and continue the original task. Prefer a focused
+`--prompt` when the required visual information is specific.
+
+### Constraints
+
+- Distinguish the tool's report from direct observation of the original image.
+- Do not invent an image path; use a path confirmed to exist.
+- Do not install the tool, change `PATH`, configure providers, or access
+  credentials without user approval.
+- Cloud providers may upload the image to an external service. Do not send
+  sensitive images without user approval; prefer an already configured local
+  provider when appropriate.
+- If the command is unavailable or unconfigured, report that state. Installation
+  and setup may be performed only after user approval; instructions are at
+  https://github.com/pawprint0706/orca-vision-helper/blob/main/docs/AGENT_INSTALL.md
+<!-- END orca-vision-helper -->

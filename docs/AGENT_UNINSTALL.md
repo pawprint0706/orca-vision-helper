@@ -53,12 +53,35 @@ run the same command there — or just delete that venv.
 rm -rf .venv
 ```
 
-## 5. Verify removal
+## 5. Remove the global agent-awareness rule (if registered)
+
+This step changes user-level harness instructions. Perform it only when the
+user has approved removing the tool rule. Check the relevant global instruction
+files listed in [AGENT_INSTALL.md](AGENT_INSTALL.md#register-agent-awareness-recommended).
+
+Remove exactly one block beginning with:
+
+```text
+<!-- BEGIN orca-vision-helper -->
+```
+
+and ending with:
+
+```text
+<!-- END orca-vision-helper -->
+```
+
+Preserve every instruction outside those markers. If only one marker is
+present, stop rather than guessing the block boundary. The project-root
+`AGENTS.md` is repository guidance and is unrelated to this removal.
+
+## 6. Verify removal
 
 ```bash
 which orca-vision-helper   # must print nothing
 ls ~/.config/orca-vision-helper 2>/dev/null   # must print nothing
 ```
 
-After §1–§5 there is no trace left in `~/.config`, the Python environment, or
-the repository.
+Also confirm that the global instruction files contain no
+`BEGIN orca-vision-helper` marker. After §1–§6 there is no tool-managed config,
+environment, global command, or registered discovery block left behind.

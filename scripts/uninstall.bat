@@ -22,5 +22,8 @@ echo.
 echo Uninstalled.
 echo If provider keys could not be removed, delete them manually from
 echo Windows Credential Manager ^(entries under "orca-vision-helper"^).
+echo If you registered agent awareness, remove only the block between the
+echo BEGIN/END orca-vision-helper markers and preserve all other instructions.
+echo See docs\AGENT_UNINSTALL.md for details.
 echo.
 pause

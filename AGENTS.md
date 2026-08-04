@@ -1,64 +1,55 @@
 # AGENTS.md
 
-## orca-vision-helper — how to "see" images without vision
+## Scope
 
-You may not have vision. This project is a CLI that sends an image to a
-vision-capable model and returns a **text report** you can read. Whenever a
-task requires understanding an image, use this tool instead of trying to read
-the file directly.
+These instructions apply to agents working on the `orca-vision-helper`
+repository itself. They are not the global tool-discovery rule distributed to
+other repositories or harnesses.
 
-Works in any harness (opencode, codex, Claude Code, Cursor, …) because it's
-just a bash command.
+The short, stable rule intended for global agent instructions is
+[`docs/AGENT_TOOL_RULE.md`](docs/AGENT_TOOL_RULE.md). Do not copy this root file
+into a harness's global instructions.
 
-### When to use
+## Project boundaries
 
-- You need to understand a screenshot or captured screen (e.g. from
-  computer-use / browser tools).
-- You need UI state: dialog/button text, layout overlap, clipping, alignment.
+- This project is an analysis-only CLI. It accepts an existing local image,
+  sends it to a configured vision provider, and returns a text report.
+- Screen capture, desktop control, and browser automation are outside the v1
+  implementation boundary.
+- Provider credentials must not be written to the project config or committed
+  to the repository. Keep the existing environment-variable, OpenCode auth,
+  and OS-keychain separation.
+- Cloud analysis can transmit screenshots to an external service. Do not send
+  sensitive images, configure providers, access credentials, or install this
+  package unless the user has authorized the action.
+- If visual inspection is needed while working on this repository and the
+  current agent cannot inspect the image reliably, use the globally installed
+  `orca-vision-helper` command if available. Do not bootstrap or configure it
+  merely because the command is missing.
 
-### How to use
+## Change guidance
+
+- Keep provider-specific models, recovery commands, and setup details out of
+  `docs/AGENT_TOOL_RULE.md`; those belong in the CLI help, README, and install
+  documentation because they change more frequently.
+- Preserve the `BEGIN orca-vision-helper` and `END orca-vision-helper` markers
+  in the distributable rule. They allow a previously installed block to be
+  replaced without overwriting unrelated global instructions.
+- When the discovery or installation workflow changes, keep
+  `docs/AGENT_TOOL_RULE.md`, `README.md`, `docs/AGENT_INSTALL.md`,
+  `docs/AGENT_UNINSTALL.md`, and the platform install/uninstall scripts in sync.
+- The supported runtime is Python 3.11+. Source code uses the `src/` layout;
+  tests are under `tests/`.
+
+## Verification
+
+When changes are authorized and development dependencies are already
+available, use the focused tests first, then the full checks as appropriate:
 
 ```bash
-# check availability (global command, or venv-relative inside the repo)
-command -v orca-vision-helper || .venv/bin/orca-vision-helper --help
-
-# default: UI layout-bug diagnosis report (JSON-schema, Summary: + Issues:)
-orca-vision-helper analyze <image.png>
-
-# free-form question (no schema)
-orca-vision-helper analyze <image.png> --prompt "List every button text in this dialog."
-
-# structured output / explicit provider
-orca-vision-helper analyze <image.png> --json
-orca-vision-helper analyze <image.png> --provider opencode --model claude-sonnet-4-6
+python -m pytest -q
+ruff check src/ tests/
 ```
 
-Read the returned text report and continue working. If parsing failed, raw
-text comes back with `parse_degraded` — still usable.
-
-### Key behaviors
-
-- A successful `analyze` promotes that provider to the default; later calls
-  just work.
-- `opencode-go` / `opencode` providers need no key entry (auto-detected).
-- If unconfigured or you're unsure which provider to use: **ask the user**,
-  or run `orca-vision-helper setup` / `orca-vision-helper check`.
-
-### Errors (JSON: `status: "error"`, `error_code`, `next_action`)
-
-| `error_code` | Response |
-|---|---|
-| `AUTH_FAILED` | `provider update <id> --key -` |
-| `TIMEOUT` / `RATE_LIMIT` / `SERVER_ERROR` | retry after a few seconds |
-| `MODEL_NOT_FOUND` | `provider update <id> --model M`; list with `models` |
-| `OLLAMA_UNAVAILABLE` | `ollama serve` + `ollama pull <model>` |
-
-### Privacy
-
-Cloud providers send the image to an external API. For sensitive screens, ask
-the user whether to use the local Ollama provider.
-
-### Install / setup (if the command is missing)
-
-Follow `docs/AGENT_INSTALL.md` (install, register the global command, then ask
-the user which provider to set as default).
+Do not install missing dependencies solely to run verification without user
+approval. Report any verification that could not be performed.

@@ -1,8 +1,10 @@
 # orca-vision-helper
 
-> **For AI agents (vision-blind coding models)**: follow [docs/AGENT_INSTALL.md](docs/AGENT_INSTALL.md)
-> for step-by-step installation instructions, and [docs/AGENT_UNINSTALL.md](docs/AGENT_UNINSTALL.md)
-> for removal.
+> **For AI agents (vision-blind coding models)**: after the user has explicitly
+> approved installation or removal, follow
+> [docs/AGENT_INSTALL.md](docs/AGENT_INSTALL.md) or
+> [docs/AGENT_UNINSTALL.md](docs/AGENT_UNINSTALL.md). Tool absence alone is not
+> permission to install or configure it.
 >
 > **한국어 안내는 하단에 동일한 내용으로 있습니다**: [한국어 안내로 건너뛰기](#한국어-안내)
 
@@ -51,25 +53,29 @@ is moved, re-run the install script to refresh the global command.
 ### Make agents aware of the tool (recommended)
 
 A plain CLI is invisible to coding agents unless it appears in their context —
-there is no MCP-style tool list to discover it from. To make every agent
-session (in any harness: opencode / codex / Claude Code / Cursor …) know about
-the tool, merge the project-root `AGENTS.md` into the global instructions file
-of each harness you use. These files are read automatically at session start.
-**Always append** — never overwrite an existing file:
+there is no MCP-style tool list to discover it from. The short rule intended
+for agent discovery is [`docs/AGENT_TOOL_RULE.md`](docs/AGENT_TOOL_RULE.md).
+Copy its complete marked block into the global instructions file of each
+harness you use:
 
 | Harness | Global instructions file |
 |---|---|
 | opencode | `~/.config/opencode/AGENTS.md` |
 | Codex | `~/.codex/AGENTS.md` |
 | Claude Code | `~/.claude/CLAUDE.md` (newer versions also read `AGENTS.md`) |
-| Cursor | `~/.cursor/rules/` (global rules) |
+| Cursor | a dedicated file under `~/.cursor/rules/` |
 
-```bash
-cat AGENTS.md >> ~/.config/opencode/AGENTS.md   # example: opencode
-```
+The distributable block is delimited by `BEGIN orca-vision-helper` and
+`END orca-vision-helper`. If it is not present, append the block without
+overwriting the existing file. If it is already present, replace that block
+instead of appending a duplicate. The project-root `AGENTS.md` contains
+repository-development guidance and must not be copied globally.
 
-Skipping this is fine for interactive use (the human tells the agent about the
-tool), but agents will not discover it on their own.
+Skipping registration is fine for interactive use, but agents will not
+discover the CLI on their own. Registering or updating global instructions is
+a user-level configuration change and should only be done with user approval.
+See [docs/AGENT_INSTALL.md](docs/AGENT_INSTALL.md#register-agent-awareness-recommended)
+for detailed steps.
 
 ### Quick Start
 
@@ -185,6 +191,8 @@ rm -rf .venv
 
 ### Related docs
 
+- `docs/AGENT_TOOL_RULE.md` — short tool-discovery block for global agent instructions
+- `AGENTS.md` — guidance for agents developing this repository (not for global copying)
 - `docs/plan.md` — design decisions
 - `docs/research.md` — research notes (opencode API verification, Cloudflare UA measurements)
 
@@ -234,24 +242,27 @@ macOS에서 더블클릭이 반응하지 않으면 `chmod +x scripts/*.command`�
 ### 에이전트가 이 도구를 알게 하기 (권장)
 
 일반 CLI는 MCP처럼 툴 목록에 나타나지 않아 에이전트가 스스로 발견할 수
-없습니다. 모든 세션에서 에이전트(어떤 하네스든: opencode / codex / Claude
-Code / Cursor …)가 이 도구를 알게 하려면, 프로젝트 루트의 `AGENTS.md`를
-사용 중인 하네스의 전역 지침 파일에 병합하세요. 이 파일들은 세션 시작 시
-자동으로 읽힙니다. **반드시 append** — 기존 파일을 덮어쓰지 마세요:
+없습니다. 에이전트 발견을 위해 전역으로 배포할 짧은 규칙은
+[`docs/AGENT_TOOL_RULE.md`](docs/AGENT_TOOL_RULE.md)입니다. 이 파일의 표식된
+블록 전체를 사용하는 하네스의 전역 지침 파일에 넣으세요:
 
 | 하네스 | 전역 지침 파일 |
 |---|---|
 | opencode | `~/.config/opencode/AGENTS.md` |
 | Codex | `~/.codex/AGENTS.md` |
 | Claude Code | `~/.claude/CLAUDE.md` (신버전은 `AGENTS.md`도 읽음) |
-| Cursor | `~/.cursor/rules/` (전역 규칙) |
+| Cursor | `~/.cursor/rules/` 아래의 전용 규칙 파일 |
 
-```bash
-cat AGENTS.md >> ~/.config/opencode/AGENTS.md   # 예: opencode
-```
+배포 블록은 `BEGIN orca-vision-helper`와 `END orca-vision-helper` 표식으로
+둘러싸여 있습니다. 기존 블록이 없으면 다른 내용을 덮어쓰지 않고 추가하고,
+이미 있으면 중복으로 추가하지 말고 해당 블록만 교체하세요. 프로젝트 루트의
+`AGENTS.md`는 저장소 개발용 지침이므로 전역 파일에 복사하면 안 됩니다.
 
-생략해도 대화형 사용에는 문제없지만(사람이 필요할 때 알려주면 됨),
-에이전트가 스스로 이 도구를 발견할 수는 없습니다.
+등록을 생략해도 대화형 사용에는 문제없지만 에이전트가 CLI를 스스로 발견할 수는
+없습니다. 전역 지침 등록과 갱신은 사용자 설정 변경이므로 사용자 승인 후에만
+수행해야 합니다. 자세한 절차는
+[docs/AGENT_INSTALL.md](docs/AGENT_INSTALL.md#register-agent-awareness-recommended)를
+참고하세요.
 
 ### 빠른 시작
 
@@ -365,5 +376,7 @@ rm -rf .venv
 
 ### 관련 문서
 
+- `docs/AGENT_TOOL_RULE.md` — 전역 에이전트 지침용 짧은 도구 발견 블록
+- `AGENTS.md` — 이 저장소를 개발하는 에이전트용 지침 (전역 복사 용도 아님)
 - `docs/plan.md` — 설계 확정 사항
 - `docs/research.md` — 조사 기록 (opencode API 검증, Cloudflare UA 실측)
