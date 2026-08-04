@@ -25,6 +25,7 @@ Orca 안에서 **비전 해독 기능이 없는 모델**(예: deepseek 계열, �
 | D5 | **캡처 미구현** (v1) | 스크린샷은 Orca의 computer-use / browser-use가 파일로 생성. 헬퍼는 분석 전용 |
 | D6 | 프로젝트명: **orca-vision-helper** | opencode 전용 느낌의 구명(vgmcp-for-orca) 탈피 |
 | D7 | 키 저장: **OS 키체인**(keyring) + env var + opencode auth.json 폴백 | VGMCP와 동일 보안 기준. 키는 설정 파일에 평문 저장 금지 |
+| D8 | **외부 전송 동의는 최초 설치 시 수집** | 설치 스크립트가 기본 거부 방식으로 고지·동의를 받고 버전 마커를 기록. 민감 이미지 전송은 별도 승인 필요 |
 
 ## 3. 제공자 카탈로그 (v1)
 
@@ -41,9 +42,10 @@ Orca 안에서 **비전 해독 기능이 없는 모델**(예: deepseek 계열, �
 ### 키 해석 순서 (클라우드 제공자)
 
 1. env var (`OPENROUTER_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `OPENCODE_API_KEY`)
-2. OS 키체인 (`orca-vision-helper` 서비스, `provider:<id>` 키)
-3. opencode 제공자는 `~/.local/share/opencode/auth.json` 자동 폴백
-4. CLI `--key -` 가려진 입력으로 직접 등록
+2. opencode 제공자는 `~/.local/share/opencode/auth.json` 자동 폴백
+3. OS 키체인 (`orca-vision-helper` 서비스, `provider:<id>` 키)
+
+CLI의 setup 또는 `--key -` 가려진 입력으로 받은 키는 OS 키체인에 등록한다.
 
 ## 4. 아키텍처
 
@@ -52,13 +54,16 @@ src/orca_vision_helper/
   cli.py        # argparse: setup / provider add|list|update|remove / analyze / check / models
   config.py     # ~/.config/orca-vision-helper/config.json (원자적 저장)
   providers.py  # 제공자 카탈로그 (표 3)
-  auth.py       # 키 해석 (env → 키체인 → opencode auth.json)
+  auth.py       # 키 해석 (env → opencode auth.json → 키체인)
   api.py        # 백엔드 빌더 + OpenAI 호환 / Anthropic / Ollama 클라이언트
   imaging.py    # 이미지 전처리 (VGMCP 포팅: 1568px 다운스케일, PNG/JPEG)
   report.py     # JSON 스키마 + 단계적 파싱 폴백 (VGMCP 포팅)
   errors.py     # VisionErrorCode + next_action (VGMCP 포팅)
   models.py     # ProviderConfig / VisionReportBody (VGMCP 포팅)
 ```
+
+VGMCP 표기는 설계와 코드의 출처를 뜻한다. 필요한 구현은 이 저장소에 포함되어
+있으며, 실행 시 VGMCP 저장소·설치 경로·프로세스·패키지를 요구하지 않는다.
 
 ### 4.1 분석 파이프라인 (VGMCP 재사용)
 
@@ -99,7 +104,7 @@ orca-vision-helper models                   # 지원 제공자 + 비전 기본 �
   "target_folder": null,          // v1 미사용 (예비)
   "providers": [
     { "id": "opencode-go", "type": "opencode-go", "label": "OpenCode Go",
-      "model": "qwen3.6-plus", "base_url": null, "key_ref": null }
+      "model": "qwen3.6-plus", "base_url": "https://opencode.ai/zen/go/v1", "key_ref": null }
   ],
   "default_provider_id": "opencode-go",
   "last_used_provider_id": null   // analyze 성공 시 기본값으로 승격 (VGMCP §7.3 규칙 계승)
@@ -109,13 +114,7 @@ orca-vision-helper models                   # 지원 제공자 + 비전 기본 �
 ## 7. 마일스톤
 
 - **M1 (현재)**: 스캐폴드 + VGMCP 파이프라인 포팅 + opencode-go 실전 검증 + setup/provider/analyze/check CLI
-- **M2**: 나머지 제공자 검증 (anthropic / openrouter / ollama / custom) + `models`/`check` 완성
-- **M3 (옵션)**: `capture-analyze` (Orca computer-use 스크린샷 → 분석 원샷), MCP 래퍼 제공
-
-## 8. 추후 과제 / 고려 사항
-
-- **외부 전송 동의(consent)**: 최초 설치 스크립트에서 외부 전송 사실을 고지하고
-  기본 거부 방식으로 명시적 동의를 받는다. 동의 버전은 가상환경 마커에 기록하며,
-  런타임 최초 분석 UI는 두지 않는다. 민감 이미지 전송은 여전히 별도 승인이 필요하다.
-- **상시 워커**: 반복 분석이 잦아지면 상주(백그라운드) 분석 데몬 또는 Orca 상시 비전 워커로 전환 검토
-- **VGMCP와의 관계**: VGMCP는 범용 MCP 서버, orca-vision-helper는 Orca 전용 CLI. 공용 파이프라인(imaging/report/errors)은 양쪽에서 유지보수 (향후 공유 패키지 분리 검토)
+- **M2**: 나머지 제공자 실제 연동 검증 (anthropic / openrouter / ollama / custom /
+  Google Gemini) + `models`/`check` 완성. Gemini는 기존 백엔드를 재사용할 수 있는
+  OpenAI 호환 엔드포인트를 우선 구현·검증하고, 호환 계층의 제약이 확인될 때만
+  네이티브 Gemini API 백엔드를 추가한다.

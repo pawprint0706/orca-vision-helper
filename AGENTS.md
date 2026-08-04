@@ -29,6 +29,9 @@ into a harness's global instructions.
 
 ## Change guidance
 
+- Use descriptive Git commits as the change history. Do not maintain a
+  standalone changelog unless the project adopts a separate release-note
+  process that has a clear owner and source of truth.
 - Keep provider-specific models, recovery commands, and setup details out of
   `docs/AGENT_TOOL_RULE.md`; those belong in the CLI help, README, and install
   documentation because they change more frequently.

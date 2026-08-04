@@ -7,7 +7,7 @@ anthropic uses the Messages API; ollama talks to the local /api/chat.
 
 Common rules (plan §4.2):
 - every request carries a browser-style User-Agent (Cloudflare bot check)
-- timeouts: cloud 60s, Ollama 180s
+- timeouts: cloud 120s, Ollama 180s
 """
 
 from __future__ import annotations

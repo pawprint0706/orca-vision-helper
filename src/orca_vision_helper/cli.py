@@ -104,6 +104,10 @@ def _cmd_setup(args) -> int:
         key_value = getpass.getpass(
             "API key (empty = env var / opencode auth.json): "
         ).strip() or None
+    elif t == "custom":
+        key_value = getpass.getpass(
+            "API key (optional; empty = keyless gateway): "
+        ).strip() or None
 
     key_ref = None
     if key_value:

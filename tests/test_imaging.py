@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from orca_vision_helper.errors import VisionError, VisionErrorCode
 from orca_vision_helper import imaging
+from orca_vision_helper.errors import VisionError, VisionErrorCode
 from orca_vision_helper.imaging import preprocess
 
 

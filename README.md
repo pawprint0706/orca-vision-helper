@@ -244,7 +244,6 @@ same-named command from another installation.
 - `AGENTS.md` — guidance for agents developing this repository (not for global copying)
 - `docs/plan.md` — design decisions
 - `docs/research.md` — research notes (opencode API verification, Cloudflare UA measurements)
-- `CHANGELOG.md` — release-facing change history
 - `LICENSE` — MIT license text
 
 ---
@@ -473,7 +472,6 @@ rm -rf .venv
 
 - `docs/AGENT_TOOL_RULE.md` — 전역 에이전트 지침용 짧은 도구 발견 블록
 - `AGENTS.md` — 이 저장소를 개발하는 에이전트용 지침 (전역 복사 용도 아님)
-- `CHANGELOG.md` — 릴리스 변경 기록
 - `LICENSE` — MIT 라이선스 전문
 - `docs/plan.md` — 설계 확정 사항
 - `docs/research.md` — 조사 기록 (opencode API 검증, Cloudflare UA 실측)

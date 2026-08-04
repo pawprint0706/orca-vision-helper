@@ -6,7 +6,6 @@ from pathlib import Path
 
 from orca_vision_helper.providers import CATALOG
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 

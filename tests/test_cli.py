@@ -64,6 +64,35 @@ def test_setup_invalid_choice_returns_1(monkeypatch):
     assert cfg.load_config().providers == []
 
 
+def test_setup_custom_accepts_optional_key(monkeypatch):
+    stored = {}
+    monkeypatch.setattr(
+        cli.auth,
+        "set_key",
+        lambda ref, key: stored.update(ref=ref, key=key),
+    )
+
+    rc = _run_setup(
+        monkeypatch,
+        ["7", "https://gateway.example/v1", "vision-model", "gateway-key"],
+    )
+
+    assert rc == 0
+    provider = cfg.load_config().get_provider("custom")
+    assert provider.key_ref == cli.auth.keyref_for("custom")
+    assert stored == {"ref": "provider:custom", "key": "gateway-key"}
+
+
+def test_setup_custom_allows_keyless_gateway(monkeypatch):
+    rc = _run_setup(
+        monkeypatch,
+        ["7", "http://localhost:8080/v1", "vision-model", ""],
+    )
+
+    assert rc == 0
+    assert cfg.load_config().get_provider("custom").key_ref is None
+
+
 def test_provider_without_subcommand_prints_help(capsys):
     rc = cli.main(["provider"])
     out = capsys.readouterr().out

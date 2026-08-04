@@ -18,7 +18,7 @@ def _isolated_config(tmp_path, monkeypatch):
 
 def test_keyless_custom_add_check_analyze_full_path(tmp_path, capsys):
     class Handler(BaseHTTPRequestHandler):
-        def do_GET(self):  # noqa: N802
+        def do_GET(self):
             assert self.path == "/v1/models"
             body = json.dumps({"data": [{"id": "vision-model"}]}).encode()
             self.send_response(200)
@@ -27,7 +27,7 @@ def test_keyless_custom_add_check_analyze_full_path(tmp_path, capsys):
             self.end_headers()
             self.wfile.write(body)
 
-        def do_POST(self):  # noqa: N802
+        def do_POST(self):
             assert self.path == "/v1/chat/completions"
             length = int(self.headers.get("Content-Length", "0"))
             self.rfile.read(length)
@@ -43,7 +43,7 @@ def test_keyless_custom_add_check_analyze_full_path(tmp_path, capsys):
             self.end_headers()
             self.wfile.write(body)
 
-        def log_message(self, format, *args):  # noqa: A002
+        def log_message(self, format, *args):
             pass
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
