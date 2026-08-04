@@ -1,4 +1,4 @@
-"""orca-vision-helper — gives vision-blind LLMs an 'eye' inside Orca.
+"""Fallback image analysis for vision-limited agent and harness surfaces.
 
 Analyzes screenshots with a vision-capable model API and returns a text report.
 """

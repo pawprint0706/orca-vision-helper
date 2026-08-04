@@ -281,7 +281,6 @@ def _cmd_provider_list(_args) -> int:
     config = cfg.load_config()
     out = {
         "default_provider_id": config.default_provider_id,
-        "last_used_provider_id": config.last_used_provider_id,
         "providers": [
             {"id": p.id, "type": p.type, "model": p.model, "base_url": p.base_url,
              "key_required": prov.CATALOG[p.type].key_required, "has_key": auth.has_key(p)}
@@ -349,10 +348,6 @@ def _cmd_analyze(args) -> int:
         report = backend.analyze(image, prompt, schema=args.prompt is None)
     except VisionError as exc:
         return _print_json(exc.to_result(provider.id), ok=False)
-
-    cfg.update_config(
-        lambda latest: latest.mark_used(provider.id) if latest.get_provider(provider.id) else None
-    )
 
     if args.json:
         return _print_json(VisionResult(provider=provider.id, report=report).model_dump())

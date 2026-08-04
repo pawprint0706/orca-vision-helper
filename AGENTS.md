@@ -38,6 +38,11 @@ into a harness's global instructions.
 - Preserve the `BEGIN orca-vision-helper` and `END orca-vision-helper` markers
   in the distributable rule. They allow a previously installed block to be
   replaced without overwriting unrelated global instructions.
+- Do not recommend registering the distributable rule in Codex, Claude, or
+  Cursor global instructions. Their built-in vision is the default; awareness
+  registration is only for a confirmed vision-limited harness or model surface.
+- Installers must refuse to overwrite an existing same-named global command
+  unless it is already owned by this exact repository installation.
 - When the discovery or installation workflow changes, keep
   `docs/AGENT_TOOL_RULE.md`, `README.md`, `docs/AGENT_INSTALL.md`,
   `docs/AGENT_UNINSTALL.md`, and the platform install/uninstall scripts in sync.

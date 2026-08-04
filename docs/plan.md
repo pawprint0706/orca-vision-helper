@@ -4,11 +4,12 @@
 
 ## 1. 개요
 
-Orca 안에서 **비전 해독 기능이 없는 모델**(예: deepseek 계열, 일부 로컬 모델)로 코딩할 때,
-화면 캡처·브라우저 스크린샷 등 **비전을 요구하는 작업**을 수행할 수 있게 해주는 헬퍼.
+Orca 안에서 로컬 이미지를 안정적으로 볼 수 없는 모델이나 하네스 화면이
+**비전을 요구하는 작업**을 수행할 때 쓰는 fallback 헬퍼. 내장 비전이 안정적으로
+사용 가능하면 그것을 우선한다.
 
 ```
-메인 모델 (비전 없음, 아무 하네스: codex/claude/opencode/cursor/pi…)
+비전이 제한된 모델 또는 하네스 화면
   → bash: orca-vision-helper analyze <이미지> [--prompt "…"]
       = 이미지를 비전 모델 API로 전송 → 텍스트 리포트 반환 (2~10초)
   → 메인 모델이 리포트를 읽고 작업을 계속
@@ -26,6 +27,9 @@ Orca 안에서 **비전 해독 기능이 없는 모델**(예: deepseek 계열, �
 | D6 | 프로젝트명: **orca-vision-helper** | opencode 전용 느낌의 구명(vgmcp-for-orca) 탈피 |
 | D7 | 키 저장: **OS 키체인**(keyring) + env var + opencode auth.json 폴백 | VGMCP와 동일 보안 기준. 키는 설정 파일에 평문 저장 금지 |
 | D8 | **외부 전송 동의는 최초 설치 시 수집** | 설치 스크립트가 기본 거부 방식으로 고지·동의를 받고 버전 마커를 기록. 민감 이미지 전송은 별도 승인 필요 |
+| D9 | **내장 비전 우선, 전역 규칙은 비전 제한 하네스에만 등록** | Codex·Claude·Cursor 전역 지침에는 등록하지 않아 중복 분석·전송을 예방. 필요하면 명시적 fallback/교차 검증으로 호출 |
+| D10 | **분석 호출은 공유 기본 제공자를 변경하지 않음** | 여러 하네스가 동일 설정을 사용하므로 `--provider`/`--model`은 1회성 override. 기본값 변경은 명시적 `--set-default`만 허용 |
+| D11 | **이미지와 비전 보고서는 신뢰하지 않는 데이터로 취급** | 이미지 내부 지시를 실행하지 않도록 분석 프롬프트와 에이전트 규칙 양쪽에 신뢰 경계 설정 |
 
 ## 3. 제공자 카탈로그 (v1)
 
@@ -106,8 +110,7 @@ orca-vision-helper models                   # 지원 제공자 + 비전 기본 �
     { "id": "opencode-go", "type": "opencode-go", "label": "OpenCode Go",
       "model": "qwen3.6-plus", "base_url": "https://opencode.ai/zen/go/v1", "key_ref": null }
   ],
-  "default_provider_id": "opencode-go",
-  "last_used_provider_id": null   // analyze 성공 시 기본값으로 승격 (VGMCP §7.3 규칙 계승)
+  "default_provider_id": "opencode-go"
 }
 ```
 

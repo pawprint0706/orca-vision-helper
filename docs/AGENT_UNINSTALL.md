@@ -139,10 +139,12 @@ Remove-Item -LiteralPath $venvPath -Recurse -Force
 Before running either command, confirm the current directory is the repository
 root and the resolved target is its `.venv` directory.
 
-## 6. Remove the global agent-awareness rule
+## 6. Remove any legacy or vision-limited agent-awareness rule
 
 Remove exactly one block beginning with `<!-- BEGIN orca-vision-helper -->` and
 ending with `<!-- END orca-vision-helper -->`. Preserve all unrelated content.
+Current policy does not register this block globally for Codex, Claude, or
+Cursor, but older installations may still contain it and should be cleaned up.
 If only one marker exists, stop and ask the user rather than guessing a range.
 
 - OpenCode: `~/.config/opencode/AGENTS.md`

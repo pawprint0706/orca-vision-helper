@@ -1,4 +1,4 @@
-"""Config persistence + provider registry helpers (plan §7.3)."""
+"""Config persistence and explicit-default provider registry behavior."""
 
 from __future__ import annotations
 
@@ -44,30 +44,22 @@ def test_remove_provider_resets_default():
     assert c.last_used_provider_id is None
 
 
-def test_mark_used_promotes_default():
+def test_legacy_last_used_does_not_override_default():
     c = cfg.AppConfig()
     c.add_provider(_provider())
     c.add_provider(_provider("openrouter", "openrouter"))
-    c.mark_used("openrouter")
-    assert c.effective_default().id == "openrouter"
+    c.last_used_provider_id = "openrouter"
+    assert c.effective_default().id == "opencode-go"
 
 
-def test_effective_default_last_used_wins():
+def test_set_default_clears_legacy_last_used():
     c = cfg.AppConfig()
     c.add_provider(_provider())
     c.add_provider(_provider("openai", "openai"))
-    c.set_default_provider("opencode-go")
-    c.mark_used("openai")
-    assert c.effective_default().id == "openai"
-
-
-def test_set_default_pins_last_used():
-    c = cfg.AppConfig()
-    c.add_provider(_provider())
-    c.add_provider(_provider("openai", "openai"))
-    c.mark_used("openai")
+    c.last_used_provider_id = "openai"
     c.set_default_provider("opencode-go")
     assert c.effective_default().id == "opencode-go"
+    assert c.last_used_provider_id is None
 
 
 def test_set_default_unknown_returns_false():
@@ -77,12 +69,18 @@ def test_set_default_unknown_returns_false():
 
 def test_roundtrip_persists(tmp_path):
     cfg.update_config(lambda latest: latest.add_provider(_provider()))
-    cfg.update_config(lambda latest: latest.mark_used("opencode-go"))
     loaded = cfg.load_config()
     assert len(loaded.providers) == 1
     assert loaded.providers[0].type == "opencode-go"
     assert loaded.default_provider_id == "opencode-go"
-    assert loaded.last_used_provider_id == "opencode-go"
+    assert loaded.last_used_provider_id is None
+
+
+def test_legacy_last_used_is_not_persisted():
+    cfg.update_config(lambda latest: latest.add_provider(_provider()))
+    cfg.update_config(lambda latest: setattr(latest, "last_used_provider_id", "opencode-go"))
+    raw = json.loads(cfg.config_path().read_text())
+    assert "last_used_provider_id" not in raw
 
 
 def test_config_path_uses_xdg():

@@ -21,6 +21,9 @@ def test_posix_installers_are_identical_and_default_deny():
     assert shell.index("pip install -e .") < shell.index(
         'printf \'%s\\n\' "cloud-upload-consent-v1"'
     )
+    assert "Refusing to overwrite existing command" in shell
+    assert "ln -sfn" not in shell
+    assert "Do NOT add the rule to Codex, Claude, or Cursor global instructions" in shell
 
 
 def test_windows_installer_has_same_consent_contract():
@@ -34,3 +37,6 @@ def test_windows_installer_has_same_consent_contract():
     assert batch.index("pip install -e .") < batch.index(
         'echo cloud-upload-consent-v1'
     )
+    assert "Refusing to overwrite existing command" in batch
+    assert 'if exist "%SHIM%"' in batch
+    assert "Do NOT add the rule to Codex, Claude, or Cursor global instructions" in batch

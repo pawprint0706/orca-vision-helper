@@ -62,7 +62,18 @@ elif { [ -d "$HOME/.local/bin" ] || mkdir -p "$HOME/.local/bin" 2>/dev/null; } &
     TARGET="$HOME/.local/bin"
 fi
 if [ -n "$TARGET" ]; then
-    ln -sfn "$PWD/.venv/bin/orca-vision-helper" "$TARGET/orca-vision-helper"
+    EXPECTED_COMMAND="$PWD/.venv/bin/orca-vision-helper"
+    COMMAND_PATH="$TARGET/orca-vision-helper"
+    if [ -e "$COMMAND_PATH" ] || [ -L "$COMMAND_PATH" ]; then
+        if [ ! -L "$COMMAND_PATH" ] || [ "$(readlink "$COMMAND_PATH")" != "$EXPECTED_COMMAND" ]; then
+            echo "ERROR: Refusing to overwrite existing command: $COMMAND_PATH"
+            echo "Inspect and remove or rename it explicitly, then re-run this installer."
+            exit 1
+        fi
+        echo "Already registered: $COMMAND_PATH"
+    else
+        ln -s "$EXPECTED_COMMAND" "$COMMAND_PATH"
+    fi
     if echo ":$PATH:" | grep -q ":$TARGET:"; then
         echo "Registered: $TARGET/orca-vision-helper (on PATH)"
     else
@@ -77,9 +88,12 @@ else
 fi
 
 echo ""
-echo "Recommended: make AI agents aware of this tool (so they can 'see' screenshots)."
-echo "With your approval, copy the marked block from docs/AGENT_TOOL_RULE.md"
-echo "into your harness's global instructions. Do NOT copy the root AGENTS.md."
+echo "Agent awareness is only for vision-limited models or harness surfaces."
+echo "Do NOT add the rule to Codex, Claude, or Cursor global instructions; their"
+echo "built-in vision should remain the default. See docs/AGENT_INSTALL.md."
+echo "Remove any legacy marked block from those global surfaces only with approval."
+echo "For another vision-limited harness, explicit approval is still required"
+echo "before adding docs/AGENT_TOOL_RULE.md to its global instructions."
 echo "If the marked block already exists, replace only that block; do not append"
 echo "a duplicate or overwrite unrelated instructions."
 echo "See docs/AGENT_INSTALL.md for target paths and the safe merge procedure."

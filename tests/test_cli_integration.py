@@ -79,6 +79,21 @@ def test_keyless_custom_add_check_analyze_full_path(tmp_path, capsys):
         assert rc == 0
         assert analyzed["status"] == "ok"
         assert analyzed["report"]["summary"] == "local ok"
+
+        rc = cli.main([
+            "provider", "add", "--type", "custom", "--id", "second-gateway",
+            "--base-url", base_url, "--model", "vision-model",
+        ])
+        assert rc == 0
+        capsys.readouterr()
+
+        rc = cli.main(["analyze", str(image), "--provider", "second-gateway", "--json"])
+        assert rc == 0
+        capsys.readouterr()
+        rc = cli.main(["provider", "list"])
+        listed_after = json.loads(capsys.readouterr().out)
+        assert rc == 0
+        assert listed_after["default_provider_id"] == "local-gateway"
     finally:
         server.shutdown()
         server.server_close()

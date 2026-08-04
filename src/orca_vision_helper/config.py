@@ -1,7 +1,7 @@
-"""Configuration persistence + provider registry (plan §4.2.4, §7.3).
+"""Configuration persistence + provider registry (plan §4, §6).
 
 Stored at ~/.config/orca-vision-helper/config.json (XDG-style). Only provider
-metadata and key references live here — never raw API keys (plan §7.6).
+metadata and key references live here — never raw API keys.
 
 Writes are atomic (temp file + os.replace) and guarded by a file lock.
 """
@@ -36,14 +36,15 @@ class AppConfig(BaseModel):
     target_folder: str | None = None  # v1 unused (reserved)
 
     providers: list[ProviderConfig] = Field(default_factory=list)
-    default_provider_id: str | None = None   # plan §7.3: first-registered, then last-used
-    last_used_provider_id: str | None = None
+    default_provider_id: str | None = None
+    # Accepted only to migrate older config files; analysis no longer changes defaults.
+    last_used_provider_id: str | None = Field(default=None, exclude=True)
 
     # Image preprocessing (plan §7.5)
     max_long_edge: int = 1568
     downscale: str = "auto"  # "auto" | "off"
 
-    # ---- provider registry helpers (plan §7.3) ----------------------------- #
+    # ---- provider registry helpers ----------------------------------------- #
     def get_provider(self, provider_id: str) -> ProviderConfig | None:
         return next((p for p in self.providers if p.id == provider_id), None)
 
@@ -51,7 +52,7 @@ class AppConfig(BaseModel):
         if self.get_provider(provider.id):
             raise ValueError(f"provider id already exists: {provider.id}")
         self.providers.append(provider)
-        # First registered provider becomes the default (plan §7.3 rule 2).
+        # The first registered provider becomes the initial default.
         if self.default_provider_id is None:
             self.default_provider_id = provider.id
 
@@ -59,34 +60,22 @@ class AppConfig(BaseModel):
         self.providers = [p for p in self.providers if p.id != provider_id]
         if self.default_provider_id == provider_id:
             self.default_provider_id = self.providers[0].id if self.providers else None
-        if self.last_used_provider_id == provider_id:
-            self.last_used_provider_id = None
-
-    def mark_used(self, provider_id: str) -> None:
-        """Last-used becomes the effective default going forward (plan §7.3 rule 3)."""
-        self.last_used_provider_id = provider_id
-        self.default_provider_id = provider_id
+        self.last_used_provider_id = None
 
     def set_default_provider(self, provider_id: str) -> bool:
-        """Explicitly choose the default backend.
-
-        effective_default() prioritizes last_used_provider_id, so an explicit
-        choice MUST also pin last_used — otherwise a previously-used backend
-        keeps winning and the user's selection silently has no effect.
-        """
+        """Explicitly choose the default backend."""
         if self.get_provider(provider_id) is None:
             return False
         self.default_provider_id = provider_id
-        self.last_used_provider_id = provider_id
+        self.last_used_provider_id = None
         return True
 
     def effective_default(self) -> ProviderConfig | None:
-        """Resolve the default provider: last-used wins, else stored default."""
-        for pid in (self.last_used_provider_id, self.default_provider_id):
-            if pid:
-                p = self.get_provider(pid)
-                if p:
-                    return p
+        """Resolve the explicitly stored default, falling back to the first provider."""
+        if self.default_provider_id:
+            provider = self.get_provider(self.default_provider_id)
+            if provider:
+                return provider
         return self.providers[0] if self.providers else None
 
 

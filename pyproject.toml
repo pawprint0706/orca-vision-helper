@@ -1,7 +1,7 @@
 [project]
 name = "orca-vision-helper"
 version = "0.1.0"
-description = "Orca Vision Helper — gives vision-blind LLMs an 'eye' inside Orca by analyzing screenshots with a vision-capable model."
+description = "Fallback CLI for vision-limited agents to analyze local images with a configured vision provider."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
