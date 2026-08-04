@@ -40,6 +40,11 @@ class _Resp:
         return self._payload
 
 
+class _InvalidJsonResp(_Resp):
+    def json(self):
+        raise ValueError("not json")
+
+
 def _make_png(tmp_path: Path, size=(10, 10)) -> Path:
     from PIL import Image
 
@@ -147,6 +152,23 @@ def test_anthropic_request_shape(monkeypatch):
     assert out == '{"summary":"s"}'
 
 
+def test_anthropic_uses_configured_base_url(monkeypatch):
+    captured = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        captured["url"] = url
+        return _Resp({"content": [{"type": "text", "text": "ok"}]})
+
+    monkeypatch.setattr(api.httpx, "post", fake_post)
+    provider = ProviderConfig(
+        id="anthropic-proxy",
+        type="anthropic",
+        base_url="https://proxy.example/v1/messages/",
+    )
+    AnthropicBackend(provider, "key")._complete(b"i", "image/png", "p")
+    assert captured["url"] == "https://proxy.example/v1/messages"
+
+
 def test_anthropic_refusal_maps_to_content_filtered(monkeypatch):
     def fake_post(url, json=None, headers=None, timeout=None):
         return _Resp({"stop_reason": "refusal", "content": []})
@@ -182,6 +204,21 @@ def test_ollama_request_disables_thinking(monkeypatch):
     assert captured["body"]["format"] == "json"
     assert captured["body"]["messages"][0]["images"] == ["aW1n"]
     assert out == '{"summary":"ok","issues":[]}'
+
+
+def test_ollama_free_form_omits_json_format(monkeypatch):
+    captured = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        captured["body"] = json
+        return _Resp({"message": {"content": "plain text"}})
+
+    monkeypatch.setattr(api.httpx, "post", fake_post)
+    out = _ollama_backend()._complete(
+        b"img", "image/png", "prompt", structured=False
+    )
+    assert "format" not in captured["body"]
+    assert out == "plain text"
 
 
 def test_ollama_falls_back_to_thinking_text(monkeypatch):
@@ -316,6 +353,25 @@ def test_network_error_maps(monkeypatch):
     assert ei.value.code == VisionErrorCode.NETWORK
 
 
+@pytest.mark.parametrize("payload", [[], "text", 42, None])
+def test_non_object_json_maps_to_response_invalid(monkeypatch, payload):
+    monkeypatch.setattr(api.httpx, "post", lambda *args, **kwargs: _Resp(payload))
+    be = OpenAICompatibleBackend(_openai_provider(), "k", base_url="http://b")
+    with pytest.raises(VisionError) as exc_info:
+        be._complete(b"i", "image/png", "p")
+    assert exc_info.value.code == VisionErrorCode.RESPONSE_INVALID
+
+
+def test_non_json_2xx_maps_to_response_invalid(monkeypatch):
+    monkeypatch.setattr(
+        api.httpx, "post", lambda *args, **kwargs: _InvalidJsonResp(None)
+    )
+    be = OpenAICompatibleBackend(_openai_provider(), "k", base_url="http://b")
+    with pytest.raises(VisionError) as exc_info:
+        be._complete(b"i", "image/png", "p")
+    assert exc_info.value.code == VisionErrorCode.RESPONSE_INVALID
+
+
 # --------------------------------------------------------------------------- #
 # staged fallback in BaseBackend.analyze (plan §7.7)
 # --------------------------------------------------------------------------- #
@@ -325,7 +381,7 @@ class _FakeBackend(BaseBackend):
         self._replies = list(replies)
         self.calls = 0
 
-    def _complete(self, image_bytes, mime, prompt):
+    def _complete(self, image_bytes, mime, prompt, *, structured=True):
         self.calls += 1
         return self._replies.pop(0)
 
@@ -352,7 +408,7 @@ def test_corrective_retry_error_keeps_first_raw(tmp_path):
     src = _make_png(tmp_path)
 
     class _FailRetry(_FakeBackend):
-        def _complete(self, image_bytes, mime, prompt):
+        def _complete(self, image_bytes, mime, prompt, *, structured=True):
             self.calls += 1
             if self.calls > 1:
                 raise VisionError(VisionErrorCode.SERVER_ERROR, "boom")

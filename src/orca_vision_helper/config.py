@@ -16,8 +16,9 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
+from .errors import VisionError, VisionErrorCode
 from .models import ProviderConfig
 
 _PROCESS_LOCK = threading.RLock()
@@ -154,9 +155,12 @@ def _load_config(path: Path) -> AppConfig:
         return AppConfig()
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return AppConfig()
-    return AppConfig.model_validate(data)
+        return AppConfig.model_validate(data)
+    except (json.JSONDecodeError, OSError, ValidationError) as exc:
+        raise VisionError(
+            VisionErrorCode.BAD_REQUEST,
+            f"Configuration is invalid and was not modified: {path} ({exc})",
+        ) from exc
 
 
 def load_config() -> AppConfig:

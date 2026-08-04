@@ -7,6 +7,7 @@ import json
 import pytest
 
 from orca_vision_helper import config as cfg
+from orca_vision_helper.errors import VisionError, VisionErrorCode
 from orca_vision_helper.models import ProviderConfig
 
 
@@ -89,11 +90,23 @@ def test_config_path_uses_xdg():
     assert cfg.config_path().name == "config.json"
 
 
-def test_corrupt_config_falls_back_to_default(tmp_path):
+def test_corrupt_config_is_rejected_without_overwrite(tmp_path):
     cfg.config_path().parent.mkdir(parents=True, exist_ok=True)
     cfg.config_path().write_text("{not json!!")
-    c = cfg.load_config()
-    assert c.providers == []
+    with pytest.raises(VisionError) as exc_info:
+        cfg.load_config()
+    assert exc_info.value.code == VisionErrorCode.BAD_REQUEST
+    assert cfg.config_path().read_text() == "{not json!!"
+
+
+def test_schema_invalid_config_is_rejected_without_overwrite(tmp_path):
+    cfg.config_path().parent.mkdir(parents=True, exist_ok=True)
+    raw = '{"providers":[{"id":"x","type":"not-a-provider"}]}'
+    cfg.config_path().write_text(raw)
+    with pytest.raises(VisionError) as exc_info:
+        cfg.load_config()
+    assert exc_info.value.code == VisionErrorCode.BAD_REQUEST
+    assert cfg.config_path().read_text() == raw
 
 
 def test_no_key_in_config(tmp_path):

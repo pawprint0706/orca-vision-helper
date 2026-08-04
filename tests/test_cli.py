@@ -6,6 +6,7 @@ import argparse
 import io
 import sys
 
+import httpx
 import pytest
 
 from orca_vision_helper import cli
@@ -84,3 +85,84 @@ def test_force_utf8_stdio(monkeypatch):
     print("가나다")
     out.flush()
     assert "가나다".encode() in out_buf.getvalue()
+
+
+def test_provider_type_change_resets_type_defaults(capsys):
+    _seed_provider()
+    rc = cli.main(["provider", "update", "opencode-go", "--type", "anthropic"])
+    assert rc == 0
+    provider = cfg.load_config().get_provider("opencode-go")
+    assert provider.type == "anthropic"
+    assert provider.model == "claude-sonnet-4-6"
+    assert provider.base_url == "https://api.anthropic.com/v1/messages"
+
+
+def test_provider_type_change_allows_explicit_overrides(capsys):
+    _seed_provider()
+    rc = cli.main([
+        "provider", "update", "opencode-go", "--type", "ollama",
+        "--model", "qwen3-vl:4b", "--base-url", "http://ollama.internal:11434",
+    ])
+    assert rc == 0
+    provider = cfg.load_config().get_provider("opencode-go")
+    assert provider.model == "qwen3-vl:4b"
+    assert provider.base_url == "http://ollama.internal:11434"
+
+
+def test_change_to_custom_requires_url_and_model(capsys):
+    _seed_provider()
+    rc = cli.main(["provider", "update", "opencode-go", "--type", "custom"])
+    assert rc == 1
+    assert cfg.load_config().get_provider("opencode-go").type == "opencode-go"
+
+
+def test_anthropic_probe_uses_models_url_and_rejects_unauthorized(monkeypatch):
+    captured = {}
+
+    class Response:
+        status_code = 401
+
+        def json(self):
+            return {"error": "unauthorized"}
+
+    def fake_get(url, headers=None, timeout=None):
+        captured["url"] = url
+        return Response()
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+    provider = ProviderConfig(
+        id="anthropic", type="anthropic", model="m",
+        base_url="https://api.anthropic.com/v1/messages",
+    )
+    result = cli._probe_endpoint(provider, "bad-key")
+    assert captured["url"] == "https://api.anthropic.com/v1/models"
+    assert result["reachable"] is True
+    assert result["authentication_valid"] is False
+    assert result["ok"] is False
+
+
+def test_probe_fails_when_configured_model_is_not_listed(monkeypatch):
+    class Response:
+        status_code = 200
+
+        def json(self):
+            return {"data": [{"id": "different-model"}]}
+
+    monkeypatch.setattr(httpx, "get", lambda *args, **kwargs: Response())
+    provider = ProviderConfig(
+        id="custom", type="custom", model="wanted", base_url="http://local/v1"
+    )
+    result = cli._probe_endpoint(provider, None)
+    assert result["authentication_valid"] is True
+    assert result["model_available"] is False
+    assert result["ok"] is False
+
+
+def test_cli_reports_invalid_config_as_structured_json(capsys):
+    cfg.config_path().parent.mkdir(parents=True, exist_ok=True)
+    cfg.config_path().write_text("{broken", encoding="utf-8")
+    rc = cli.main(["provider", "list"])
+    output = capsys.readouterr().out
+    assert rc == 1
+    assert '"error_code": "BAD_REQUEST"' in output
+    assert '"status": "error"' in output

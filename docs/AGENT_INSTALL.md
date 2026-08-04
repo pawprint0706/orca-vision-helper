@@ -11,48 +11,107 @@
 
 ## 0. Check if already installed (skip §1–§2 if present)
 
+Use the block for the current platform.
+
+### macOS / Linux
+
 ```bash
-if [ -x .venv/bin/orca-vision-helper ] && .venv/bin/orca-vision-helper --help >/dev/null 2>&1; then
+if [ -x .venv/bin/orca-vision-helper ] && [ -f .venv/.cloud-upload-consent-v1 ]; then
     echo INSTALLED
+elif [ -x .venv/bin/orca-vision-helper ]; then
+    echo CONSENT_REQUIRED
 else
     echo NOT_INSTALLED
 fi
 ```
 
-- Use the venv-relative check above. `which orca-vision-helper` only succeeds
-  when the venv is activated or the tool is on your PATH — a false
-  `NOT_INSTALLED` is harmless: re-running the install in §2 is idempotent.
+### Windows PowerShell
+
+```powershell
+$toolPath = ".venv\Scripts\orca-vision-helper.exe"
+if ((Test-Path $toolPath) -and (Test-Path ".venv\.cloud-upload-consent-v1")) {
+    "INSTALLED"
+} elseif (Test-Path $toolPath) {
+    "CONSENT_REQUIRED"
+} else {
+    "NOT_INSTALLED"
+}
+```
+
+- Use the venv-relative check above. A global command lookup only succeeds when
+  registration is already complete, so it is not an installation check.
+- If it prints `CONSENT_REQUIRED`, complete §1.1 and record the marker command
+  from §2 after affirmative consent. Reinstallation is not otherwise required.
 - If it prints `INSTALLED`, verify the global command from §2 exists
-  (`command -v orca-vision-helper`) and re-register it if missing — global
-  registration is a **required** install step, not an option. Then jump to **§3**.
+  (`command -v orca-vision-helper` on macOS/Linux or
+  `Get-Command orca-vision-helper` on Windows) and re-register it if missing.
+  Global registration is a **required** install step. Then jump to **§3**.
 - If you suspect a stale version, just re-run `pip install -e .` to pick up the
   latest code.
 
 ## 1. Check prerequisites
 
 ```bash
-python3 --version   # 3.11+ required (install 3.11+ if missing)
+# macOS / Linux
+python3 --version
 ```
+
+```powershell
+# Windows PowerShell
+py -3 --version
+```
+
+Python 3.11 or newer is required. Installing Python itself also requires the
+user's approval when it is missing.
+
+## 1.1 Obtain cloud transmission consent
+
+Before creating a virtual environment or installing anything, show the user
+this material fact and obtain an explicit affirmative response:
+
+> When a cloud or remote custom provider is configured, images selected for
+> analysis are uploaded to that external service and may contain sensitive
+> information. Local Ollama does not upload images.
+
+Installation approval alone is not cloud transmission consent unless the user
+was shown this notice. A blank, ambiguous, or negative response means stop; do
+not install. The convenience scripts present this prompt themselves with a
+default of No. Agents using the manual non-interactive flow must receive the
+user's reply first and must not infer it from unrelated approval.
 
 ## 2. Install
 
-From the project root (the directory containing `pyproject.toml`):
+From the project root (the directory containing `pyproject.toml`), use the
+block for the current platform.
+
+### macOS / Linux
 
 ```bash
 python3 -m venv .venv
 .venv/bin/pip install -e . -q
+printf '%s\n' cloud-upload-consent-v1 > .venv/.cloud-upload-consent-v1
 ```
 
-- Calling `.venv/bin/…` directly (without activating the venv) is safe and does
-  not affect the rest of your shell state.
+### Windows PowerShell
+
+```powershell
+py -3 -m venv .venv
+& ".venv\Scripts\python.exe" -m pip install -e . -q
+Set-Content ".venv\.cloud-upload-consent-v1" "cloud-upload-consent-v1" -NoNewline
+```
+
+- Calling the platform-specific executable directly without activating the venv
+  is safe and does not affect the rest of the shell state.
 - On success this creates the `orca-vision-helper` script.
+- The marker records version 1 of the user's consent for this installation.
+  Do not create it unless the explicit response required by §1.1 was received.
+  A new consent version uses a new marker and requires a new response.
 
 ### Register the global command (required)
 
-The `.venv/bin/…` path only works while your working directory is the repo
-root. The tool must be callable from any directory, so register a global
-command — the double-click install scripts do this as a required step.
-Manual equivalent:
+The venv-relative path only works from the repo root. The tool must be callable
+from any directory, so register a global command. The install scripts do this
+as a required step. Manual equivalents follow.
 
 **macOS / Linux** — symlink into a bin dir on your PATH (e.g. `~/.local/bin`):
 
@@ -65,13 +124,15 @@ ln -sfn "$(pwd)/.venv/bin/orca-vision-helper" ~/.local/bin/orca-vision-helper
   `echo "$PATH" | grep -q "$HOME/.local/bin"` — if not, add it
   (e.g. `export PATH="$HOME/.local/bin:$PATH"` in `~/.zshrc` / `~/.bashrc`).
 
-**Windows** — PATH shim instead (no admin rights needed):
+**Windows PowerShell** — PATH shim instead (no admin rights needed):
 
-```bat
-(echo @echo off & echo "%CD%\.venv\Scripts\orca-vision-helper.exe" %%*) > "%LOCALAPPDATA%\Microsoft\WindowsApps\orca-vision-helper.cmd"
+```powershell
+$shim = Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\orca-vision-helper.cmd"
+$exe = Join-Path (Get-Location) ".venv\Scripts\orca-vision-helper.exe"
+Set-Content -LiteralPath $shim -Value "@echo off`r`n`"$exe`" %*" -Encoding ascii
 ```
 
-- Verify with `where orca-vision-helper`. `%LOCALAPPDATA%\Microsoft\WindowsApps`
+- Verify with `Get-Command orca-vision-helper`. `$env:LOCALAPPDATA\Microsoft\WindowsApps`
   is on PATH by default on modern Windows; if not, add it to PATH manually.
 
 Notes:
@@ -98,9 +159,20 @@ was already approved. After approval, copy the complete block from
 | Harness | Global instructions file |
 |---|---|
 | opencode | `~/.config/opencode/AGENTS.md` |
-| Codex | `~/.codex/AGENTS.md` |
-| Claude Code | `~/.claude/CLAUDE.md` (newer versions also read `AGENTS.md`) |
-| Cursor | a dedicated rule file such as `~/.cursor/rules/orca-vision-helper.md` |
+| Codex | `$CODEX_HOME/AGENTS.md` (default: `~/.codex/AGENTS.md`) |
+| Claude Code | `~/.claude/CLAUDE.md` |
+| Cursor | **Cursor Settings → Rules → User Rules** |
+
+For Codex, resolve the home directory first. If a non-empty
+`AGENTS.override.md` already exists there, it is the active global instruction
+file and must be updated instead of `AGENTS.md`:
+
+```bash
+codex_dir="${CODEX_HOME:-$HOME/.codex}"
+```
+
+In PowerShell, use
+`$codexDir = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME ".codex" }`.
 
 Apply these merge rules:
 
@@ -114,6 +186,12 @@ Apply these merge rules:
 5. Read the result back and confirm that exactly one begin marker and one end
    marker remain.
 
+The file merge rules apply to OpenCode, Codex, and Claude Code. Cursor does not
+document a user-level global rule file: open **Cursor Settings → Rules → User
+Rules** and paste or replace the marked block there. User Rules are plain text;
+project-local `.cursor/rules/*.mdc` files are not a substitute. Do not claim
+that these editor User Rules also configure Cursor CLI.
+
 The distributed rule intentionally contains only tool discovery, invocation,
 and safety constraints. Provider details, model names, error recovery, and
 installation instructions remain in the CLI help and repository docs so the
@@ -125,39 +203,34 @@ about the tool, but future sessions will not discover it on their own.
 ## 3. Choose and register the default provider (one-time)
 
 **Ask the user which provider they want as the default — do not pick one
-silently.** Show the supported providers (and their default models) from the
-table below or `orca-vision-helper models`, ask for the provider and (if they
-care) the model, then register their choice. The default provider is used by
-every `analyze` call.
-
-| type | provider | default model | key source |
-|---|---|---|---|
-| `opencode-go` | OpenCode Go | `qwen3.6-plus` | auto-detected (`auth.json` / `OPENCODE_API_KEY`) |
-| `opencode` | OpenCode Zen | `claude-sonnet-4-6` | auto-detected (`auth.json` / `OPENCODE_API_KEY`) |
-| `openrouter` | OpenRouter | `anthropic/claude-sonnet-4.6` | `OPENROUTER_API_KEY` / keychain |
-| `anthropic` | Anthropic Claude | `claude-sonnet-4-6` | `ANTHROPIC_API_KEY` / keychain |
-| `openai` | OpenAI GPT | `gpt-5.4` | `OPENAI_API_KEY` / keychain |
-| `ollama` | Ollama (local) | `llava:7b` | none (local) |
-| `custom` | Custom (OpenAI-compatible) | user-defined | keychain / keyless |
+silently.** Run `orca-vision-helper models`, present its current provider and
+default-model data, then ask for the provider and optional model override. This
+command reads the same catalog used by the CLI and avoids stale model tables in
+agent instructions. The selected default is used by every `analyze` call.
 
 Interactive registration (recommended when a human is at the terminal — the
 double-click install scripts do this automatically): the `setup` wizard walks
 through provider selection, hidden key entry, and model choice, then sets the
 default.
 
-```bash
-.venv/bin/orca-vision-helper setup
+```text
+orca-vision-helper setup
 ```
 
 Scripted registration of the user's choice:
 
-```bash
-.venv/bin/orca-vision-helper provider add --type <chosen-type> --model <chosen-model> --set-default
-.venv/bin/orca-vision-helper provider list   # confirm "has_key": true
+```text
+orca-vision-helper provider add --type <chosen-type> [--model <chosen-model>] --set-default
+orca-vision-helper provider list
+orca-vision-helper check
 ```
 
-- Model: use the provider's default above unless the user prefers another —
-  list vision-capable models with `orca-vision-helper models`.
+- Omit `--model` to use the catalog default shown by `models`, unless the user
+  chooses another compatible model. Custom providers require `--model` and
+  `--base-url`.
+- `has_key` reports literal credential presence. Require `has_key: true` only
+  when `key_required: true`; Ollama and keyless custom providers can be usable
+  with `has_key: false`. Use `check` to verify readiness.
 - opencode-go/opencode need **no key entry** — the key is auto-detected from
   `~/.local/share/opencode/auth.json` or `OPENCODE_API_KEY`.
 - For other providers (anthropic/openrouter/openai etc.): use the matching
@@ -167,18 +240,18 @@ Scripted registration of the user's choice:
 
 ## 4. Analyze images (usage patterns)
 
-```bash
+```text
 # Default: UI layout-bug diagnosis report (overlap/alignment/clipping, JSON schema)
-.venv/bin/orca-vision-helper analyze <image.png>
+orca-vision-helper analyze <image.png>
 
 # Free-form question: no schema, answer in whatever format you want
-.venv/bin/orca-vision-helper analyze <image.png> --prompt "List every button text in this dialog."
+orca-vision-helper analyze <image.png> --prompt "List every button text in this dialog."
 
 # Structured output
-.venv/bin/orca-vision-helper analyze <image.png> --json
+orca-vision-helper analyze <image.png> --json
 
 # Explicit provider/model (when not the default)
-.venv/bin/orca-vision-helper analyze <image.png> --provider opencode --model claude-sonnet-4-6
+orca-vision-helper analyze <image.png> --provider <provider-id> --model <model-from-models-command>
 ```
 
 ### Interpreting the result
@@ -209,14 +282,22 @@ exit code is 0 (success) / 1 (failure).
 
 ## 6. Other inspection commands
 
-```bash
-.venv/bin/orca-vision-helper check     # settings, keys, endpoint probe (ok: true/false)
-.venv/bin/orca-vision-helper models    # supported providers + vision models
+```text
+orca-vision-helper check     # model endpoint; HTTP 200 required
+orca-vision-helper models    # supported providers + vision models
 ```
 
 ## Notes
 
-- **External transmission consent**: with a cloud provider your screenshots are
-  sent to an external API. For sensitive screens, use the local Ollama provider.
+- **External transmission consent** is collected during first installation as
+  described in §1.1, not during the first analysis. With a cloud provider your
+  screenshots are sent to an external API. For sensitive screens, use Ollama.
+- Prefer hidden `--key -` input or an environment variable. A literal key passed
+  on the command line can remain in shell history or a process list.
+- Use HTTPS for remote custom providers. Plain HTTP is suitable only for a
+  trusted local gateway.
+- `check` reports connectivity, authentication validity, and model availability
+  separately. `has_key` is literal credential presence; keyless custom and
+  Ollama can be ready while reporting `has_key: false`.
 - Capturing is not this tool's job — analyze images that Orca's
   computer-use/browser-use already saved to files.

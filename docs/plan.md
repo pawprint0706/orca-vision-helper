@@ -80,7 +80,7 @@ orca-vision-helper                          # 설정 없으면 setup 안내, 있
 orca-vision-helper setup                    # 최초 대화형 설정: 제공자 선택 → 키(가려진 입력) → 모델 → 기본값 지정
 orca-vision-helper provider add --type <t> [--model M] [--key -] [--base-url U] [--set-default]
 orca-vision-helper provider list            # 등록 목록 (키 존재 여부 포함)
-orca-vision-helper provider update <id> [--model M] [--key -]
+orca-vision-helper provider update <id> [--type T] [--model M] [--base-url U] [--key -]
 orca-vision-helper provider remove <id>     # 저장된 키도 함께 삭제
 orca-vision-helper analyze <이미지> [--prompt P] [--provider ID] [--model M] [--json]
 orca-vision-helper check                    # 설정·키·엔드포인트 점검
@@ -114,6 +114,8 @@ orca-vision-helper models                   # 지원 제공자 + 비전 기본 �
 
 ## 8. 추후 과제 / 고려 사항
 
-- **외부 전송 동의(consent)**: 클라우드 제공자에 스크린샷이 나가는 것에 대한 1회 동의 UI (VGMCP §7.9 참고) — v1은 README 고지로 대체
+- **외부 전송 동의(consent)**: 최초 설치 스크립트에서 외부 전송 사실을 고지하고
+  기본 거부 방식으로 명시적 동의를 받는다. 동의 버전은 가상환경 마커에 기록하며,
+  런타임 최초 분석 UI는 두지 않는다. 민감 이미지 전송은 여전히 별도 승인이 필요하다.
 - **상시 워커**: 반복 분석이 잦아지면 상주(백그라운드) 분석 데몬 또는 Orca 상시 비전 워커로 전환 검토
 - **VGMCP와의 관계**: VGMCP는 범용 MCP 서버, orca-vision-helper는 Orca 전용 CLI. 공용 파이프라인(imaging/report/errors)은 양쪽에서 유지보수 (향후 공유 패키지 분리 검토)

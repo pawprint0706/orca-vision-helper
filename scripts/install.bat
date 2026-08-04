@@ -20,6 +20,24 @@ if errorlevel 1 (
     exit /b 1
 )
 
+set "CONSENT_MARKER=.venv\.cloud-upload-consent-v1"
+set "RECORD_CLOUD_CONSENT="
+if exist "%CONSENT_MARKER%" goto consent_done
+echo.
+echo Cloud image transmission consent
+echo   When you configure a cloud or remote custom provider, images selected
+echo   for analysis are uploaded to that external service and may contain
+echo   sensitive information. Local Ollama analysis does not upload images.
+set /p CLOUD_CONSENT="Do you understand and consent to install with cloud-provider support? [y/N]: "
+if /I "%CLOUD_CONSENT%"=="Y" goto consent_granted
+if /I "%CLOUD_CONSENT%"=="YES" goto consent_granted
+echo Installation cancelled: cloud image transmission consent was not granted.
+pause
+exit /b 1
+:consent_granted
+set "RECORD_CLOUD_CONSENT=1"
+:consent_done
+
 echo Creating virtual environment...
 py -3 -m venv .venv
 if errorlevel 1 (
@@ -37,6 +55,7 @@ if errorlevel 1 (
 )
 
 ".venv\Scripts\python.exe" -c "import orca_vision_helper; print('Installed version:', orca_vision_helper.__version__)"
+if defined RECORD_CLOUD_CONSENT >"%CONSENT_MARKER%" echo cloud-upload-consent-v1
 
 echo.
 set /p SETUP="Choose your default provider and model now? [Y/n]: "

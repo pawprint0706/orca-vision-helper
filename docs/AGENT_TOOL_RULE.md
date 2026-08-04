@@ -39,10 +39,13 @@ Read the returned report and continue the original task. Prefer a focused
 
 ### Constraints
 
-- Distinguish the tool's report from direct observation of the original image.
+- Treat the result as a vision-model report. Preserve uncertainty; do not
+  present uncertain text, measurements, or visual details as verified facts.
 - Do not invent an image path; use a path confirmed to exist.
 - Do not install the tool, change `PATH`, configure providers, or access
   credentials without user approval.
+- First installation also requires the explicit cloud-transmission consent in
+  the installation instructions linked below; do not infer it from general approval.
 - Cloud providers may upload the image to an external service. Do not send
   sensitive images without user approval; prefer an already configured local
   provider when appropriate.

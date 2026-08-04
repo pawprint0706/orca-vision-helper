@@ -98,4 +98,10 @@ def resolve_key(provider: ProviderConfig) -> str | None:
 
 
 def has_key(provider: ProviderConfig) -> bool:
-    return provider.is_local or resolve_key(provider) is not None
+    """Return whether an actual credential resolves for ``provider``.
+
+    This deliberately does not mean "ready to use": local and keyless custom
+    providers are usable without a key, but ``has_key`` remains a literal
+    description of credential presence in CLI output.
+    """
+    return resolve_key(provider) is not None

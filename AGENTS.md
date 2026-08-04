@@ -20,8 +20,8 @@ into a harness's global instructions.
   to the repository. Keep the existing environment-variable, OpenCode auth,
   and OS-keychain separation.
 - Cloud analysis can transmit screenshots to an external service. Do not send
-  sensitive images, configure providers, access credentials, or install this
-  package unless the user has authorized the action.
+  sensitive images, configure providers, access credentials, or install,
+  update, or remove this package unless the user has authorized the action.
 - If visual inspection is needed while working on this repository and the
   current agent cannot inspect the image reliably, use the globally installed
   `orca-vision-helper` command if available. Do not bootstrap or configure it
@@ -38,6 +38,8 @@ into a harness's global instructions.
 - When the discovery or installation workflow changes, keep
   `docs/AGENT_TOOL_RULE.md`, `README.md`, `docs/AGENT_INSTALL.md`,
   `docs/AGENT_UNINSTALL.md`, and the platform install/uninstall scripts in sync.
+- Keep agent-facing installation and removal commands valid on both
+  macOS/Linux and Windows; do not present POSIX-only commands as universal.
 - The supported runtime is Python 3.11+. Source code uses the `src/` layout;
   tests are under `tests/`.
 

@@ -121,8 +121,8 @@ def test_ollama_always_none():
     assert auth.resolve_key(ProviderConfig(id="ollama", type="ollama")) is None
 
 
-def test_has_key_local_true():
-    assert auth.has_key(ProviderConfig(id="ollama", type="ollama")) is True
+def test_has_key_is_literal_for_local_provider():
+    assert auth.has_key(ProviderConfig(id="ollama", type="ollama")) is False
 
 
 def test_delete_key_missing_is_safe(fake_keyring):

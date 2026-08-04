@@ -32,6 +32,12 @@ def _resolve_key_arg(value: str | None) -> str | None:
     """If --key is '-', read it hidden via getpass so it never hits argv/logs."""
     if value == "-":
         return getpass.getpass("API key (hidden): ").strip() or None
+    if value:
+        print(
+            "Warning: passing a key directly may expose it in shell history or process lists; "
+            "prefer '--key -' or an environment variable.",
+            file=sys.stderr,
+        )
     return value
 
 
@@ -203,6 +209,13 @@ def _cmd_provider_update(args) -> int:
     if provider is None:
         print(f"provider not found: {args.id}", file=sys.stderr)
         return 1
+    if args.type == "custom":
+        if args.base_url is None:
+            print("changing to custom requires --base-url", file=sys.stderr)
+            return 1
+        if args.model is None:
+            print("changing to custom requires --model", file=sys.stderr)
+            return 1
     key_value = _resolve_key_arg(args.key)
     if key_value is not None:
         provider.key_ref = provider.key_ref or auth.keyref_for(provider.id)
@@ -212,9 +225,14 @@ def _cmd_provider_update(args) -> int:
     def update_provider(latest: cfg.AppConfig) -> None:
         current = latest.get_provider(args.id)
         if current is None:
-            return
+            raise ValueError(f"provider not found: {args.id}")
         if args.type is not None:
+            new_spec = prov.CATALOG[args.type]
             current.type = args.type
+            current.base_url = new_spec.default_base_url
+            current.model = new_spec.default_model
+            if args.label is None:
+                current.label = new_spec.name
         if args.model is not None:
             current.model = args.model
         if args.label is not None:
@@ -226,7 +244,11 @@ def _cmd_provider_update(args) -> int:
         if args.set_default:
             latest.set_default_provider(current.id)
 
-    config = cfg.update_config(update_provider)
+    try:
+        config = cfg.update_config(update_provider)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     provider = config.get_provider(args.id)
     if provider is None:
         print(f"provider not found: {args.id}", file=sys.stderr)
@@ -258,7 +280,7 @@ def _cmd_provider_list(_args) -> int:
         "last_used_provider_id": config.last_used_provider_id,
         "providers": [
             {"id": p.id, "type": p.type, "model": p.model, "base_url": p.base_url,
-             "has_key": auth.has_key(p)}
+             "key_required": prov.CATALOG[p.type].key_required, "has_key": auth.has_key(p)}
             for p in config.providers
         ],
     }
@@ -285,10 +307,10 @@ def _format_report(report) -> str:
 
 def _cmd_analyze(args) -> int:
     image = Path(args.image).expanduser()
-    if not image.exists():
+    if not image.is_file():
         return _print_json({
             "status": "error", "error_code": "BAD_REQUEST",
-            "message": f"Image file does not exist: {image}",
+            "message": f"Image path is not a readable file: {image}",
         }, ok=False)
 
     config = cfg.load_config()
@@ -303,7 +325,8 @@ def _cmd_analyze(args) -> int:
         provider = provider.model_copy(update={"model": args.model})
 
     api_key = auth.resolve_key(provider)
-    if not provider.is_local and api_key is None:
+    spec = prov.CATALOG[provider.type]
+    if spec.key_required and api_key is None:
         return _print_json({
             "status": "error", "provider": provider.id,
             "error_code": "AUTH_FAILED",
@@ -341,34 +364,62 @@ def _probe_endpoint(provider: ProviderConfig, api_key: str | None) -> dict:
 
     spec = prov.CATALOG[provider.type]
     base = (provider.base_url or spec.default_base_url or "").rstrip("/")
-    if provider.is_local:
-        url, ok_statuses = f"{base}/api/tags", (200,)
-        note = "200 expected"
+    if spec.interface == "ollama":
+        url = f"{base}/api/tags"
+    elif spec.interface == "anthropic":
+        url = f"{base.removesuffix('/messages')}/models"
     else:
-        url, ok_statuses = f"{base}/models", (200, 401, 403)
-        note = "200/401/403 (403 = list hidden; expected for opencode endpoints)"
+        url = f"{base}/models"
     headers = {"User-Agent": BROWSER_UA}
-    if api_key and not provider.is_local:
-        if provider.type == "anthropic":
+    if api_key and spec.interface != "ollama":
+        if spec.interface == "anthropic":
             headers["x-api-key"] = api_key
             headers["anthropic-version"] = "2023-06-01"
         else:
             headers["Authorization"] = f"Bearer {api_key}"
     try:
         resp = httpx.get(url, headers=headers, timeout=10.0)
-        return {"url": url, "http_status": resp.status_code,
-                "ok": resp.status_code in ok_statuses, "note": note}
+        status = resp.status_code
+        model_available = None
+        if status == 200:
+            try:
+                data = resp.json()
+            except (TypeError, ValueError):
+                data = None
+            if isinstance(data, dict) and isinstance(data.get("data"), list):
+                model_ids = {
+                    item.get("id") for item in data["data"] if isinstance(item, dict)
+                }
+                model_available = provider.model in model_ids
+            elif isinstance(data, dict) and isinstance(data.get("models"), list):
+                model_ids = {
+                    item.get("name") or item.get("model")
+                    for item in data["models"]
+                    if isinstance(item, dict)
+                }
+                model_available = provider.model in model_ids
+        return {
+            "url": url,
+            "http_status": status,
+            "reachable": True,
+            "authentication_valid": False if status in (401, 403) else (True if status == 200 else None),
+            "model_available": model_available,
+            "ok": status == 200 and model_available is not False,
+            "note": "check verifies the provider's model-list endpoint; HTTP 200 is required",
+        }
     except httpx.TimeoutException:
-        return {"url": url, "ok": False, "error": "timeout"}
+        return {"url": url, "reachable": False, "authentication_valid": None,
+                "model_available": None, "ok": False, "error": "timeout"}
     except httpx.HTTPError as exc:
-        return {"url": url, "ok": False, "error": type(exc).__name__}
+        return {"url": url, "reachable": False, "authentication_valid": None,
+                "model_available": None, "ok": False, "error": type(exc).__name__}
 
 
 def _cmd_check(_args) -> int:
     config = cfg.load_config()
     providers = [
         {"id": p.id, "type": p.type, "model": p.model, "base_url": p.base_url,
-         "has_key": auth.has_key(p)}
+         "key_required": prov.CATALOG[p.type].key_required, "has_key": auth.has_key(p)}
         for p in config.providers
     ]
     result: dict = {
@@ -381,7 +432,7 @@ def _cmd_check(_args) -> int:
 
     ok = bool(config.providers)
     for p in config.providers:
-        if not auth.has_key(p):
+        if prov.CATALOG[p.type].key_required and not auth.has_key(p):
             ok = False
             break
 
@@ -501,16 +552,20 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     args = parser.parse_args(argv)
-    if not hasattr(args, "func"):
-        if not cfg.load_config().providers:
-            print(
-                "No provider configured. Run 'orca-vision-helper setup' first.",
-                file=sys.stderr,
-            )
-            return 1
-        parser.print_help()
-        return 0
-    return args.func(args)
+    try:
+        if not hasattr(args, "func"):
+            if not cfg.load_config().providers:
+                print(
+                    "No provider configured. Run 'orca-vision-helper setup' first.",
+                    file=sys.stderr,
+                )
+                return 1
+            parser.print_help()
+            return 0
+        return args.func(args)
+    except VisionError as exc:
+        provider_id = getattr(args, "provider", None) or "configuration"
+        return _print_json(exc.to_result(provider_id), ok=False)
 
 
 if __name__ == "__main__":

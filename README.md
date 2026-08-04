@@ -27,11 +27,22 @@ Main model (no vision, any harness: codex/claude/opencode/cursor/pi…)
 
 ### Install
 
+Installation requires explicit consent to the following behavior: when a cloud
+or remote custom provider is configured, images selected for analysis are sent
+to that external service and may contain sensitive information. Local Ollama
+does not upload images. Do not continue unless you understand and accept this.
+The convenience scripts ask with a default of **No** before creating the virtual
+environment and record consent as `.venv/.cloud-upload-consent-v1`.
+
 ```bash
 cd orca-vision-helper           # into the cloned repo root
 python3 -m venv .venv
 ./.venv/bin/pip install -e .
+printf '%s\n' cloud-upload-consent-v1 > .venv/.cloud-upload-consent-v1
 ```
+
+The manual commands above may be run only after the same explicit consent has
+been given; the final command records it for this installation.
 
 Or use the convenience scripts — no commands needed (double-click on
 Windows/macOS):
@@ -44,9 +55,10 @@ Windows/macOS):
 
 Requirements: Python 3.11+ (macOS may need `brew install python@3.11`). On
 macOS, if double-clicking does nothing, run `chmod +x scripts/*.command` once.
-After installing, each script asks whether to launch the interactive `setup`
-wizard, where you choose your **default provider and model**. Each script then
-**registers a global `orca-vision-helper` command** (required) so it works from
+After consent and installation, each script asks whether to launch the
+interactive `setup` wizard, where you choose your **default provider and
+model**. Each script then **registers a global `orca-vision-helper` command**
+(required) so it works from
 any directory — a symlink on macOS/Linux, a PATH shim on Windows. If the repo
 is moved, re-run the install script to refresh the global command.
 
@@ -61,15 +73,21 @@ harness you use:
 | Harness | Global instructions file |
 |---|---|
 | opencode | `~/.config/opencode/AGENTS.md` |
-| Codex | `~/.codex/AGENTS.md` |
-| Claude Code | `~/.claude/CLAUDE.md` (newer versions also read `AGENTS.md`) |
-| Cursor | a dedicated file under `~/.cursor/rules/` |
+| Codex | `$CODEX_HOME/AGENTS.md` (default: `~/.codex/AGENTS.md`) |
+| Claude Code | `~/.claude/CLAUDE.md` |
+| Cursor | **Cursor Settings → Rules → User Rules** |
 
 The distributable block is delimited by `BEGIN orca-vision-helper` and
 `END orca-vision-helper`. If it is not present, append the block without
 overwriting the existing file. If it is already present, replace that block
 instead of appending a duplicate. The project-root `AGENTS.md` contains
 repository-development guidance and must not be copied globally.
+
+For Codex, an existing non-empty `AGENTS.override.md` in `CODEX_HOME` takes
+precedence over `AGENTS.md`; update that active file instead. Cursor User Rules
+are plain text and global to the editor. Project-local `.cursor/rules/*.mdc`
+files are not a substitute, and this guide does not claim that User Rules apply
+to Cursor CLI.
 
 Skipping registration is fine for interactive use, but agents will not
 discover the CLI on their own. Registering or updating global instructions is
@@ -99,8 +117,8 @@ from `~/.local/share/opencode/auth.json` (or `OPENCODE_API_KEY`).
 orca-vision-helper                          # prompts to run setup if unconfigured
 orca-vision-helper setup                    # interactive: provider → key → model → default
 orca-vision-helper provider add --type <t> [--model M] [--key -] [--base-url U] [--set-default]
-orca-vision-helper provider list            # registered providers (with key presence)
-orca-vision-helper provider update <id> [--model M] [--key -]
+orca-vision-helper provider list            # registered providers (credential presence is literal)
+orca-vision-helper provider update <id> [--type T] [--model M] [--base-url U] [--key -]
 orca-vision-helper provider remove <id>     # also deletes the keychain key
 orca-vision-helper analyze <image> [--prompt P] [--provider ID] [--model M] [--json]
 orca-vision-helper check                    # settings, keys, endpoint probe
@@ -108,10 +126,15 @@ orca-vision-helper models                   # supported providers + vision model
 ```
 
 - `--key -` reads the key via a hidden prompt.
+- Do not pass a key string directly unless necessary: it can remain in shell
+  history or a process list. Prefer `--key -` or the provider environment variable.
 - Keys are **never stored in the config file** — only in the OS keychain
   (keyring, service `orca-vision-helper`), with env-var / opencode auth.json
   fallbacks.
 - A successful `analyze` promotes that provider to the default.
+- Changing `--type` resets the URL, model, and label to the new type's defaults;
+  explicit `--base-url`, `--model`, and `--label` values override them. Changing
+  to `custom` requires both `--base-url` and `--model`.
 
 ### Providers
 
@@ -135,12 +158,19 @@ orca-vision-helper models                   # supported providers + vision model
 
 ### How it works
 
-1. Image is downscaled to ≤1568px (PNG preferred; large RGB re-encoded as JPEG q90)
+1. Input is limited to 50 MiB and 80 million pixels, then downscaled to ≤1568px
+   (PNG preferred; large RGB re-encoded as JPEG q90)
 2. Default prompt + JSON schema instruction → vision model call
 3. Report parse fallback: direct JSON → fenced block → one corrective retry → raw_text
 
 All requests use a browser-style User-Agent (to pass the opencode endpoint's
 Cloudflare bot check).
+
+`check` probes the effective provider's model-list endpoint and requires HTTP
+200. Its endpoint result separates `reachable`, `authentication_valid`, and
+`model_available`; the last field is `null` when the endpoint does not expose a
+recognizable model list and `false` makes the check fail. `has_key` only reports
+actual credential presence, so it is `false` for a usable Ollama or keyless custom provider.
 
 ### Troubleshooting
 
@@ -150,11 +180,21 @@ Cloudflare bot check).
 | `AUTH_FAILED` | Re-enter the key: `provider update <id> --key -`; check the auth.json path |
 | `MODEL_NOT_FOUND` | Check the model name: `provider update <id> --model M`; list vision models with `models` |
 | `OLLAMA_UNAVAILABLE` | Run `ollama serve` and `ollama pull <model>` |
+| invalid configuration | Fix or move `~/.config/orca-vision-helper/config.json`; it is never silently overwritten |
 
 ### Privacy note
 
 Using a cloud provider sends **your screenshots to an external API**. For
 sensitive screens, use the local Ollama provider instead.
+Use HTTPS for remote custom providers. Plain HTTP should only be used for a
+trusted local gateway because images and optional bearer credentials are not
+encrypted in transit.
+Consent to this behavior is collected and versioned during first installation,
+not during the first `analyze` call. A declined or empty response cancels the
+install before the virtual environment is created. Removing `.venv` also removes
+the local consent record; a later fresh install asks again.
+This general installation consent does not authorize uploading a particular
+sensitive image; obtain specific approval before sending sensitive content.
 
 ### Uninstall
 
@@ -170,10 +210,19 @@ rm -rf ~/.config/orca-vision-helper
 
 # 3. Uninstall the package
 ./.venv/bin/pip uninstall orca-vision-helper
+rm -f .venv/.cloud-upload-consent-v1
 
-# 4. (Optional) Remove the virtual environment
+# 4. Remove the global command after verifying it belongs to this installation
+# macOS/Linux: inspect and remove the confirmed symlink under /usr/local/bin or ~/.local/bin
+# Windows: inspect and remove %LOCALAPPDATA%\Microsoft\WindowsApps\orca-vision-helper.cmd
+
+# 5. (Optional) Remove the virtual environment
 rm -rf .venv
 ```
+
+Use [the agent uninstall guide](docs/AGENT_UNINSTALL.md#3-remove-the-registered-global-command)
+for safe platform-specific inspection and removal commands. Do not delete a
+same-named command from another installation.
 
 - Step 1 is the only way to cleanly remove API keys from the OS keychain
   (keyring service `orca-vision-helper`). If you already deleted the config,
@@ -195,6 +244,8 @@ rm -rf .venv
 - `AGENTS.md` — guidance for agents developing this repository (not for global copying)
 - `docs/plan.md` — design decisions
 - `docs/research.md` — research notes (opencode API verification, Cloudflare UA measurements)
+- `CHANGELOG.md` — release-facing change history
+- `LICENSE` — MIT license text
 
 ---
 
@@ -217,11 +268,21 @@ rm -rf .venv
 
 ### 설치
 
+설치하려면 다음 동작에 대한 명시적 동의가 필요합니다. 클라우드 또는 원격 custom
+제공자를 설정하면 분석 대상으로 선택한 이미지가 외부 서비스로 전송되며 민감한
+정보가 포함될 수 있습니다. 로컬 Ollama는 이미지를 외부로 전송하지 않습니다.
+이를 이해하고 동의할 때만 진행하세요. 편의 스크립트는 가상환경 생성 전에 기본값
+**아니요**로 동의를 묻고 `.venv/.cloud-upload-consent-v1`에 동의 버전을 기록합니다.
+
 ```bash
 cd orca-vision-helper           # 클론한 저장소 루트로 이동
 python3 -m venv .venv
 ./.venv/bin/pip install -e .
+printf '%s\n' cloud-upload-consent-v1 > .venv/.cloud-upload-consent-v1
 ```
+
+위 수동 명령은 같은 명시적 동의를 받은 뒤에만 실행해야 하며, 마지막 명령이 이
+설치의 동의를 기록합니다.
 
 또는 편의 스크립트를 사용하세요 — 명령어 입력 없이 (윈도우/맥은 더블클릭):
 
@@ -233,8 +294,8 @@ python3 -m venv .venv
 
 요구사항: Python 3.11+ (macOS는 `brew install python@3.11` 필요할 수 있음).
 macOS에서 더블클릭이 반응하지 않으면 `chmod +x scripts/*.command`를 한 번 실행하세요.
-스크립트는 설치 후 **기본 제공자와 모델을 고르는** 대화형 `setup` 마법사를
-실행할지 묻습니다. 그리고 **어느 디렉토리에서든 실행 가능한 전역 명령어로
+스크립트는 동의와 설치 후 **기본 제공자와 모델을 고르는** 대화형 `setup`
+마법사를 실행할지 묻습니다. 그리고 **어느 디렉토리에서든 실행 가능한 전역 명령어로
 등록**을 (macOS/Linux: 심볼릭 링크, Windows: PATH 셈 파일) 필수 단계로
 수행합니다. 저장소를 옮긴 경우 설치 스크립트를 다시 실행해 전역 명령어를
 갱신하세요.
@@ -249,14 +310,19 @@ macOS에서 더블클릭이 반응하지 않으면 `chmod +x scripts/*.command`�
 | 하네스 | 전역 지침 파일 |
 |---|---|
 | opencode | `~/.config/opencode/AGENTS.md` |
-| Codex | `~/.codex/AGENTS.md` |
-| Claude Code | `~/.claude/CLAUDE.md` (신버전은 `AGENTS.md`도 읽음) |
-| Cursor | `~/.cursor/rules/` 아래의 전용 규칙 파일 |
+| Codex | `$CODEX_HOME/AGENTS.md` (기본값: `~/.codex/AGENTS.md`) |
+| Claude Code | `~/.claude/CLAUDE.md` |
+| Cursor | **Cursor Settings → Rules → User Rules** |
 
 배포 블록은 `BEGIN orca-vision-helper`와 `END orca-vision-helper` 표식으로
 둘러싸여 있습니다. 기존 블록이 없으면 다른 내용을 덮어쓰지 않고 추가하고,
 이미 있으면 중복으로 추가하지 말고 해당 블록만 교체하세요. 프로젝트 루트의
 `AGENTS.md`는 저장소 개발용 지침이므로 전역 파일에 복사하면 안 됩니다.
+
+Codex의 `CODEX_HOME`에 비어 있지 않은 `AGENTS.override.md`가 있으면
+`AGENTS.md`보다 우선하므로 그 활성 파일을 수정해야 합니다. Cursor User Rules는
+에디터 전역에 적용되는 일반 텍스트입니다. 프로젝트용 `.cursor/rules/*.mdc`로
+대체할 수 없으며, 이 문서는 Cursor CLI에도 적용된다고 단정하지 않습니다.
 
 등록을 생략해도 대화형 사용에는 문제없지만 에이전트가 CLI를 스스로 발견할 수는
 없습니다. 전역 지침 등록과 갱신은 사용자 설정 변경이므로 사용자 승인 후에만
@@ -286,8 +352,8 @@ opencode-go/opencode 제공자는 키 입력이 필요 없습니다.
 orca-vision-helper                          # 설정 없으면 setup 안내
 orca-vision-helper setup                    # 대화형: 제공자 선택 → 키 → 모델 → 기본값
 orca-vision-helper provider add --type <t> [--model M] [--key -] [--base-url U] [--set-default]
-orca-vision-helper provider list            # 등록 목록 (키 존재 여부 포함)
-orca-vision-helper provider update <id> [--model M] [--key -]
+orca-vision-helper provider list            # 등록 목록 (실제 키 존재 여부 표시)
+orca-vision-helper provider update <id> [--type T] [--model M] [--base-url U] [--key -]
 orca-vision-helper provider remove <id>     # 키체인 키도 함께 삭제
 orca-vision-helper analyze <이미지> [--prompt P] [--provider ID] [--model M] [--json]
 orca-vision-helper check                    # 설정·키·엔드포인트 점검
@@ -295,9 +361,14 @@ orca-vision-helper models                   # 지원 제공자 + 비전 모델 �
 ```
 
 - `--key -`는 가려진 입력으로 키를 물어봅니다.
+- 키 문자열을 명령행에 직접 넣으면 셸 기록이나 프로세스 목록에 남을 수 있으므로,
+  `--key -` 또는 제공자 환경 변수를 우선 사용하세요.
 - 키는 **설정 파일에 저장되지 않습니다** — OS 키체인(keyring, 서비스
   `orca-vision-helper`) 또는 환경 변수 / opencode auth.json 폴백만 사용합니다.
 - `analyze` 성공 시 해당 provider가 기본값으로 승격됩니다.
+- `--type`을 바꾸면 URL·모델·라벨이 새 타입의 기본값으로 재설정되며, 함께 지정한
+  `--base-url`, `--model`, `--label`이 이를 덮어씁니다. `custom`으로 변경할 때는
+  `--base-url`과 `--model`이 모두 필요합니다.
 
 ### 제공자
 
@@ -321,12 +392,19 @@ orca-vision-helper models                   # 지원 제공자 + 비전 모델 �
 
 ### 동작 방식
 
-1. 이미지를 1568px 이하로 다운스케일 (PNG 우선, 대형 RGB는 JPEG q90)
+1. 입력을 50 MiB 및 8천만 픽셀로 제한한 뒤 1568px 이하로 다운스케일
+   (PNG 우선, 대형 RGB는 JPEG q90)
 2. 기본 프롬프트 + JSON 스키마 지시문으로 비전 모델 호출
 3. 리포트 파싱 폴백: 직접 JSON → fenced block → 1회 corrective 재시도 → raw_text
 
 모든 요청은 브라우저형 User-Agent를 사용합니다 (opencode 엔드포인트의
 Cloudflare 봇 차단 대응).
+
+`check`는 유효 기본 제공자의 모델 목록 엔드포인트를 점검하며 HTTP 200만 성공으로
+판정합니다. 결과는 `reachable`, `authentication_valid`, `model_available`을 구분하고,
+모델 목록 형식을 알 수 없으면 마지막 값은 `null`이며 `false`이면 점검도 실패합니다.
+`has_key`는 실제 자격 증명 존재만 뜻하므로 사용 가능한 Ollama나 무키 custom
+제공자에서도 `false`입니다.
 
 ### 트러블슈팅
 
@@ -336,11 +414,19 @@ Cloudflare 봇 차단 대응).
 | `AUTH_FAILED` | 키 재입력: `provider update <id> --key -`, auth.json 경로 확인 |
 | `MODEL_NOT_FOUND` | 모델명 확인: `provider update <id> --model M`, `models`로 비전 모델 확인 |
 | `OLLAMA_UNAVAILABLE` | `ollama serve` 실행 및 `ollama pull <모델>` |
+| 잘못된 설정 파일 | `~/.config/orca-vision-helper/config.json`을 수정하거나 옮기세요. 자동 덮어쓰지 않습니다. |
 
 ### 주의
 
 클라우드 제공자를 사용하면 **스크린샷이 외부 API로 전송**됩니다.
 민감한 화면이 있는 경우 로컬 Ollama 제공자를 사용하세요.
+원격 custom 제공자에는 HTTPS를 사용하세요. 일반 HTTP는 이미지와 선택적 bearer 키가
+암호화되지 않으므로 신뢰할 수 있는 로컬 게이트웨이에만 사용해야 합니다.
+이 동의는 최초 `analyze` 실행 때가 아니라 최초 설치 중 버전별로 받습니다. 빈 응답이나
+거부는 가상환경을 만들기 전에 설치를 중단합니다. `.venv`를 삭제하면 로컬 동의 기록도
+삭제되므로 나중에 새로 설치할 때 다시 묻습니다.
+이 일반 설치 동의가 특정 민감 이미지의 전송까지 허가하는 것은 아닙니다. 민감한
+내용을 보내기 전에는 별도 승인을 받아야 합니다.
 
 ### 삭제
 
@@ -356,10 +442,19 @@ rm -rf ~/.config/orca-vision-helper
 
 # 3. 패키지 제거
 ./.venv/bin/pip uninstall orca-vision-helper
+rm -f .venv/.cloud-upload-consent-v1
 
-# 4. (선택) 가상환경 삭제
+# 4. 이 설치가 만든 전역 명령인지 확인한 뒤 제거
+# macOS/Linux: /usr/local/bin 또는 ~/.local/bin 아래의 확인된 심볼릭 링크
+# Windows: %LOCALAPPDATA%\Microsoft\WindowsApps\orca-vision-helper.cmd
+
+# 5. (선택) 가상환경 삭제
 rm -rf .venv
 ```
+
+플랫폼별 안전한 확인·제거 명령은
+[에이전트 삭제 안내](docs/AGENT_UNINSTALL.md#3-remove-the-registered-global-command)를
+참고하세요. 다른 설치가 만든 동명 명령을 삭제하면 안 됩니다.
 
 - 1단계가 OS 키체인(keyring 서비스 `orca-vision-helper`)의 API 키를 깨끗하게
   제거하는 유일한 방법입니다. 이미 설정을 지웠다면 `provider remove`로 제공자를
@@ -378,5 +473,7 @@ rm -rf .venv
 
 - `docs/AGENT_TOOL_RULE.md` — 전역 에이전트 지침용 짧은 도구 발견 블록
 - `AGENTS.md` — 이 저장소를 개발하는 에이전트용 지침 (전역 복사 용도 아님)
+- `CHANGELOG.md` — 릴리스 변경 기록
+- `LICENSE` — MIT 라이선스 전문
 - `docs/plan.md` — 설계 확정 사항
 - `docs/research.md` — 조사 기록 (opencode API 검증, Cloudflare UA 실측)

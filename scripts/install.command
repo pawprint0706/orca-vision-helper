@@ -15,12 +15,33 @@ if ! python3 -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) e
     exit 1
 fi
 
+CONSENT_MARKER=".venv/.cloud-upload-consent-v1"
+RECORD_CLOUD_CONSENT=0
+if [ ! -f "$CONSENT_MARKER" ]; then
+    echo ""
+    echo "Cloud image transmission consent"
+    echo "  When you configure a cloud or remote custom provider, images selected"
+    echo "  for analysis are uploaded to that external service and may contain"
+    echo "  sensitive information. Local Ollama analysis does not upload images."
+    read -r -p "Do you understand and consent to install with cloud-provider support? [y/N]: " CLOUD_CONSENT
+    case "$CLOUD_CONSENT" in
+        y|Y|yes|YES) RECORD_CLOUD_CONSENT=1 ;;
+        *)
+            echo "Installation cancelled: cloud image transmission consent was not granted."
+            exit 1
+            ;;
+    esac
+fi
+
 echo "Creating virtual environment..."
 python3 -m venv .venv
 
 echo "Installing orca-vision-helper..."
 ./.venv/bin/python -m pip install -e . -q
 ./.venv/bin/python -c "import orca_vision_helper; print('Installed version:', orca_vision_helper.__version__)"
+if [ "$RECORD_CLOUD_CONSENT" -eq 1 ]; then
+    printf '%s\n' "cloud-upload-consent-v1" > "$CONSENT_MARKER"
+fi
 
 echo ""
 read -r -p "Choose your default provider and model now? [Y/n]: " SETUP

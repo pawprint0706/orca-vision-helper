@@ -53,7 +53,9 @@ class BaseBackend:
         self.provider = provider
         self.backend_id = provider.id
 
-    def _complete(self, image_bytes: bytes, mime: str, prompt: str) -> str:
+    def _complete(
+        self, image_bytes: bytes, mime: str, prompt: str, *, structured: bool = True
+    ) -> str:
         raise NotImplementedError
 
     def analyze(
@@ -73,7 +75,7 @@ class BaseBackend:
         )
 
         full_prompt = prompt + (report_mod.SCHEMA_INSTRUCTION if schema else "")
-        raw = self._complete(image_bytes, mime, full_prompt)
+        raw = self._complete(image_bytes, mime, full_prompt, structured=schema)
 
         parsed = report_mod.try_parse(raw)
         if parsed is not None:
@@ -85,7 +87,7 @@ class BaseBackend:
         # One corrective retry (plan §7.7 step 3).
         corrective = report_mod.CORRECTIVE_INSTRUCTION + raw + report_mod.SCHEMA_INSTRUCTION
         try:
-            raw2 = self._complete(image_bytes, mime, corrective)
+            raw2 = self._complete(image_bytes, mime, corrective, structured=True)
         except VisionError:
             return report_mod.degraded(raw)
         parsed2 = report_mod.try_parse(raw2)
@@ -136,6 +138,22 @@ def map_httpx_error(exc: Exception) -> VisionError:
     return VisionError(VisionErrorCode.UNKNOWN, str(exc) or "unknown error")
 
 
+def _json_object(resp: httpx.Response) -> dict:
+    """Decode a provider response and enforce the object-shaped API contract."""
+    try:
+        data = resp.json()
+    except (TypeError, ValueError) as exc:
+        raise VisionError(
+            VisionErrorCode.RESPONSE_INVALID, "Provider returned a non-JSON response."
+        ) from exc
+    if not isinstance(data, dict):
+        raise VisionError(
+            VisionErrorCode.RESPONSE_INVALID,
+            f"Provider returned JSON {type(data).__name__}; expected an object.",
+        )
+    return data
+
+
 # --------------------------------------------------------------------------- #
 # OpenAI-compatible backend (opencode-go / opencode / openrouter / openai / custom)
 # --------------------------------------------------------------------------- #
@@ -153,7 +171,9 @@ class OpenAICompatibleBackend(BaseBackend):
         self.base_url = base_url.rstrip("/")
         self.model = provider.model or CATALOG[provider.type].default_model
 
-    def _complete(self, image_bytes: bytes, mime: str, prompt: str) -> str:
+    def _complete(
+        self, image_bytes: bytes, mime: str, prompt: str, *, structured: bool = True
+    ) -> str:
         if not self.model:
             raise VisionError(VisionErrorCode.MODEL_NOT_FOUND, "No model name specified.")
         b64 = base64.b64encode(image_bytes).decode("ascii")
@@ -192,17 +212,24 @@ class OpenAICompatibleBackend(BaseBackend):
         except httpx.HTTPError as exc:
             raise map_httpx_error(exc) from exc
 
-        data = resp.json()
-        choices = data.get("choices") or []
-        if not choices:
+        data = _json_object(resp)
+        choices = data.get("choices")
+        if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
             raise VisionError(VisionErrorCode.RESPONSE_INVALID, "Received an empty response.")
         finish = choices[0].get("finish_reason")
         if finish == "content_filter":
             raise VisionError(VisionErrorCode.CONTENT_FILTERED, "Blocked by the safety filter.")
-        text = (choices[0].get("message") or {}).get("content") or ""
+        message = choices[0].get("message")
+        if not isinstance(message, dict):
+            raise VisionError(VisionErrorCode.RESPONSE_INVALID, "Invalid response message.")
+        text = message.get("content") or ""
         if isinstance(text, list):  # some providers return content parts
-            text = "".join(p.get("text", "") for p in text if isinstance(p, dict))
-        if not text:
+            text = "".join(
+                p.get("text", "") if isinstance(p.get("text", ""), str) else ""
+                for p in text
+                if isinstance(p, dict)
+            )
+        if not isinstance(text, str) or not text:
             raise VisionError(VisionErrorCode.RESPONSE_INVALID, "Received an empty response.")
         return text
 
@@ -211,15 +238,19 @@ class OpenAICompatibleBackend(BaseBackend):
 # Anthropic backend (Messages API)
 # --------------------------------------------------------------------------- #
 class AnthropicBackend(BaseBackend):
-    _API_URL = "https://api.anthropic.com/v1/messages"
     _API_VERSION = "2023-06-01"
 
     def __init__(self, provider: ProviderConfig, api_key: str | None) -> None:
         super().__init__(provider)
         self.api_key = api_key
         self.model = provider.model or CATALOG["anthropic"].default_model
+        self.api_url = (
+            provider.base_url or CATALOG["anthropic"].default_base_url or ""
+        ).rstrip("/")
 
-    def _complete(self, image_bytes: bytes, mime: str, prompt: str) -> str:
+    def _complete(
+        self, image_bytes: bytes, mime: str, prompt: str, *, structured: bool = True
+    ) -> str:
         if not self.api_key:
             raise VisionError(VisionErrorCode.AUTH_FAILED, "Missing Anthropic API key.")
         b64 = base64.b64encode(image_bytes).decode("ascii")
@@ -246,16 +277,22 @@ class AnthropicBackend(BaseBackend):
             "User-Agent": BROWSER_UA,
         }
         try:
-            resp = httpx.post(self._API_URL, json=body, headers=headers, timeout=_CLOUD_TIMEOUT)
+            resp = httpx.post(self.api_url, json=body, headers=headers, timeout=_CLOUD_TIMEOUT)
             resp.raise_for_status()
         except httpx.HTTPError as exc:
             raise map_httpx_error(exc) from exc
 
-        data = resp.json()
+        data = _json_object(resp)
         if data.get("stop_reason") == "refusal":
             raise VisionError(VisionErrorCode.CONTENT_FILTERED, "The model refused to respond.")
-        parts = data.get("content") or []
-        text = "".join(p.get("text", "") for p in parts if p.get("type") == "text")
+        parts = data.get("content")
+        if not isinstance(parts, list):
+            raise VisionError(VisionErrorCode.RESPONSE_INVALID, "Invalid Anthropic content.")
+        text = "".join(
+            p.get("text", "") if isinstance(p.get("text", ""), str) else ""
+            for p in parts
+            if isinstance(p, dict) and p.get("type") == "text"
+        )
         if not text:
             raise VisionError(VisionErrorCode.RESPONSE_INVALID, "Received an empty response.")
         return text
@@ -270,24 +307,34 @@ class OllamaBackend(BaseBackend):
         self.host = host.rstrip("/")
         self.model = provider.model or CATALOG["ollama"].default_model
 
-    def _complete(self, image_bytes: bytes, mime: str, prompt: str) -> str:
+    def _complete(
+        self, image_bytes: bytes, mime: str, prompt: str, *, structured: bool = True
+    ) -> str:
         b64 = base64.b64encode(image_bytes).decode("ascii")
         body = {
             "model": self.model,
             "stream": False,
-            "format": "json",  # ask Ollama for JSON output (plan §7.7)
             # Reasoning models (e.g. qwen3-vl) default to thinking ON, which sends
             # the whole answer to message.thinking and leaves message.content empty
             # (or just "{}"). Turn it off so the answer lands in content.
             "think": False,
             "messages": [{"role": "user", "content": prompt, "images": [b64]}],
         }
+        if structured:
+            body["format"] = "json"
         data = self._chat(body)
-        message = data.get("message") or {}
+        message = data.get("message")
+        if not isinstance(message, dict):
+            raise VisionError(VisionErrorCode.RESPONSE_INVALID, "Invalid Ollama response.")
         text = message.get("content") or ""
+        if not isinstance(text, str):
+            raise VisionError(VisionErrorCode.RESPONSE_INVALID, "Invalid Ollama content.")
         if not text.strip():
             # Safety net: a reasoning model may still have put text in `thinking`.
-            text = (message.get("thinking") or "").strip()
+            thinking = message.get("thinking") or ""
+            if not isinstance(thinking, str):
+                raise VisionError(VisionErrorCode.RESPONSE_INVALID, "Invalid Ollama thinking.")
+            text = thinking.strip()
         if not text.strip():
             raise VisionError(VisionErrorCode.RESPONSE_INVALID, "Received an empty response.")
         return text
@@ -319,7 +366,7 @@ class OllamaBackend(BaseBackend):
         except httpx.HTTPError as exc:
             raise map_httpx_error(exc) from exc
 
-        return resp.json()
+        return _json_object(resp)
 
 
 # --------------------------------------------------------------------------- #
