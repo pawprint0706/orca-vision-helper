@@ -1,10 +1,21 @@
 # orca-vision-helper
 
-> **For vision-limited AI agents and fallback use**: after the user has explicitly
-> approved installation or removal, follow
-> [docs/AGENT_INSTALL.md](docs/AGENT_INSTALL.md) or
-> [docs/AGENT_UNINSTALL.md](docs/AGENT_UNINSTALL.md). Tool absence alone is not
-> permission to install or configure it.
+> [!WARNING]
+> This project is deprecated and is no longer maintained. Do not use it for new
+> installations or configurations. Existing users should remove the installation,
+> stored provider credentials, configuration, global command, and legacy agent
+> instruction block by following the ownership-aware
+> [uninstall guide](docs/AGENT_UNINSTALL.md) before deleting their local checkout.
+>
+> 이 프로젝트는 deprecated 상태이며 더 이상 유지보수되지 않습니다. 새로 설치하거나
+> 구성하지 마세요. 기존 사용자는 로컬 저장소를 삭제하기 전에 소유권을 확인하는
+> [제거 안내](docs/AGENT_UNINSTALL.md)에 따라 설치본, 저장된 제공자 자격 증명, 설정,
+> 전역 명령 및 기존 에이전트 지침 블록을 제거하는 것을 권장합니다.
+
+> **Agent note:** Do not install, configure, or call this deprecated tool. Removal
+> still requires explicit user approval and must follow
+> [docs/AGENT_UNINSTALL.md](docs/AGENT_UNINSTALL.md) so unrelated files and
+> credentials are preserved.
 >
 > **한국어 안내는 하단에 동일한 내용으로 있습니다**: [한국어 안내로 건너뛰기](#한국어-안내)
 
